@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - CETEP Ouvidoria</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; background-color: #fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); border-radius: 5px; }
+        h1 { text-align: center; color: #333; }
+        p { text-align: center; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; box-sizing: border-box; border-radius: 4px; }
+        button { background-color: #4CAF50; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%; border-radius: 4px; }
+        button:hover { opacity: 0.8; }
+        #messageBox { text-align: center; padding: 10px; margin-top: 10px; border-radius: 4px; }
+        .hidden { display: none; }
+        .error { background-color: #fdd; color: #a00; border: 1px solid #a00; }
+        .success { background-color: #dfd; color: #0a0; border: 1px solid #0a0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Acesso Administrativo</h1>
+        <p>CETEP - Ouvidoria LNAB</p>
+
+        <form id="loginForm">
+            <label for="usuarioAdmin"><b>Usuário</b></label>
+            <input type="text" placeholder="Entre com o Usuário" id="usuarioAdmin" name="usuarioAdmin" required>
+
+            <label for="senhaAdmin"><b>Senha</b></label>
+            <input type="password" placeholder="Entre com a Senha" id="senhaAdmin" name="senhaAdmin" required>
+            
+            <button type="submit" id="loginButton">Entrar</button>
+        </form>
+
+        <div id="messageBox" class="hidden"></div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const messageBox = document.getElementById('messageBox');
+            const loginButton = document.getElementById('loginButton');
+
+            loginButton.disabled = true;
+            loginButton.textContent = 'Aguarde...';
+
+            messageBox.className = 'hidden';
+            messageBox.textContent = '';
+            
+            fetch('/admin_login', {
+                method: 'POST',
+                body: new URLSearchParams(new FormData(form))
+            })
+            .then(response => response.json().then(data => ({ status: response.status, body: data })))
+            .then(({ status, body }) => {
+                if (status === 200) {
+                    messageBox.className = 'success';
+                    messageBox.textContent = 'Login realizado com sucesso! Redirecionando...';
+                    window.location.href = body.redirect; 
+                } else {
+                    messageBox.className = 'error';
+                    messageBox.textContent = body.erro || 'Credenciais inválidas.';
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                messageBox.className = 'error';
+                messageBox.textContent = 'Erro de conexão com o servidor.';
+            })
+            .finally(() => {
+                loginButton.disabled = false;
+                loginButton.textContent = 'Entrar';
+            });
+        });
+    </script>
+</body>
+</html>

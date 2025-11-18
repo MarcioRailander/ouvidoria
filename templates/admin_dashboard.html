@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Ouvidoria</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h1 { color: #333; }
+        button, .button { padding: 10px 15px; border: none; cursor: pointer; border-radius: 4px; }
+        .btn-update { background-color: #007bff; color: white; margin-right: 10px; }
+        .btn-logout { background-color: #dc3545; color: white; text-decoration: none; }
+        .manifestacao-card { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; background-color: #fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); border-radius: 5px; }
+        .manifestacao-card h2 { margin-top: 0; color: #007bff; }
+        .manifestacao-card p { margin-bottom: 5px; }
+        .status-pendente { color: red; font-weight: bold; }
+        .status-respondida { color: green; font-weight: bold; }
+        .descricao, .resposta-texto { margin-top: 10px; padding: 10px; background-color: #eee; border: 1px solid #ddd; white-space: pre-wrap; border-radius: 4px; }
+        /* Estilos do Modal */
+        .modal { 
+            display: none; position: fixed; z-index: 1; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; 
+            background-color: rgba(0,0,0,0.4); justify-content: center; align-items: center; 
+        }
+        .modal-content { background-color: #fefefe; margin: auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; }
+        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close:hover, .close:focus { color: black; text-decoration: none; cursor: pointer; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ccc; margin-top: 10px; box-sizing: border-box; border-radius: 4px; }
+        .btn-responder { background-color: #28a745; color: white; }
+        .btn-cancel { background-color: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Painel de Controle da Ouvidoria</h1>
+        <div>
+            <button onclick="carregarManifestacoes(true)" class="btn-update">Atualizar Lista</button>
+            <a href="/admin" class="button btn-logout">Sair</a> 
+        </div>
+    </div>
+    <p>Gerencie e responda às manifestações do CETEP LNAB.</p>
+
+    <div id="loadingMessage" style="text-align: center; font-size: 1.2em; padding: 20px;">
+        Carregando manifestações...
+    </div>
+
+    <div id="manifestacoesContainer">
+        </div>
+
+    <div id="noManifestations" style="text-align: center; color: #666; padding: 20px; display: none;">
+        Nenhuma manifestação encontrada.
+    </div>
+    
+    <div id="responseModal" class="modal">
+        <div class="modal-content">
+            <span onclick="fecharModal()" class="close">&times;</span>
+            <h2>Responder Manifestação</h2>
+            <p id="modalProtocolo">Protocolo:</p>
+            
+            <textarea id="responseTextarea" rows="6" placeholder="Digite sua resposta aqui..."></textarea>
+            
+            <div style="text-align: right; margin-top: 15px;">
+                <button onclick="fecharModal()" class="btn-cancel">Cancelar</button>
+                <button id="sendResponseButton" class="btn-responder">Enviar Resposta</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarManifestacoes();
+        });
+
+        let currentProtocolo = null;
+        const container = document.getElementById('manifestacoesContainer');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const noManifestations = document.getElementById('noManifestations');
+        const responseModal = document.getElementById('responseModal');
+        const modalProtocolo = document.getElementById('modalProtocolo');
+        const responseTextarea = document.getElementById('responseTextarea');
+        const sendResponseButton = document.getElementById('sendResponseButton');
+
+        function carregarManifestacoes(force = false) {
+            loadingMessage.style.display = 'block';
+            container.innerHTML = '';
+            noManifestations.style.display = 'none';
+
+            fetch('/api/manifestacoes')
+            .then(response => response.json())
+            .then(data => {
+                loadingMessage.style.display = 'none';
+                
+                if (data.length === 0) {
+                    noManifestations.style.display = 'block';
+                    return;
+                }
+
+                data.reverse().forEach(m => {
+                    const card = criarCardManifestacao(m);
+                    container.appendChild(card);
+                });
+            })
+            .catch(error => {
+                loadingMessage.style.display = 'none';
+                container.innerHTML = `<div style="padding: 10px; background-color: #fdd; color: #a00;">Erro ao carregar dados: ${error.message}</div>`;
+                console.error('Erro ao buscar manifestações:', error);
+            });
+        }
+
+        function criarCardManifestacao(m) {
+            const card = document.createElement('div');
+            const isAnswered = m.resposta !== null && m.resposta !== '';
+            
+            card.className = 'manifestacao-card';
+            
+            card.innerHTML = `
+                <h2>${m.tipo.toUpperCase()}</h2>
+                <p><strong>Protocolo:</strong> ${m.protocolo}</p>
+                <p><strong>Status:</strong> <span class="${isAnswered ? 'status-respondida' : 'status-pendente'}">${isAnswered ? 'Respondida' : 'Pendente'}</span></p>
+                <p><strong>Data:</strong> ${m.data}</p>
+                <p><strong>Nome:</strong> ${m.nome}</p>
+                <p><strong>CPF:</strong> ${m.cpf}</p>
+                <p><strong>Matrícula:</strong> ${m.matricula}</p>
+                
+                <p><strong>Descrição:</strong></p>
+                <div class="descricao">${m.descricao}</div>
+                
+                ${isAnswered ? 
+                    `<p style="margin-top: 15px;"><strong>Resposta da Ouvidoria:</strong></p>
+                    <div class="resposta-texto">${m.resposta}</div>` 
+                    : `<button onclick="abrirModal('${m.protocolo}')" class="btn-responder" style="margin-top: 15px;">
+                        Responder
+                    </button>`
+                }
+            `;
+            return card;
+        }
+
+        function abrirModal(protocolo) {
+            currentProtocolo = protocolo;
+            modalProtocolo.textContent = `Protocolo: ${protocolo}`;
+            responseTextarea.value = ''; 
+            responseModal.style.display = 'flex';
+        }
+
+        function fecharModal() {
+            responseModal.style.display = 'none';
+            currentProtocolo = null;
+        }
+
+        sendResponseButton.addEventListener('click', enviarResposta);
+
+        function enviarResposta() {
+            if (!currentProtocolo) return;
+            
+            const resposta = responseTextarea.value.trim();
+            if (resposta.length < 10) {
+                alert('A resposta deve ter pelo menos 10 caracteres.');
+                return;
+            }
+
+            sendResponseButton.disabled = true;
+            sendResponseButton.textContent = 'Enviando...';
+
+            const payload = new URLSearchParams();
+            payload.append('protocolo', currentProtocolo);
+            payload.append('resposta', resposta);
+
+            fetch('/responder', {
+                method: 'POST',
+                body: payload
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.mensagem) {
+                    alert(data.mensagem); 
+                    fecharModal();
+                    carregarManifestacoes(true); // Recarrega a lista
+                } else {
+                    alert('Erro ao enviar resposta: ' + (data.erro || 'Erro desconhecido.'));
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição de resposta:', error);
+                alert('Erro de conexão com o servidor ao enviar a resposta.');
+            })
+            .finally(() => {
+                sendResponseButton.disabled = false;
+                sendResponseButton.textContent = 'Enviar Resposta';
+            });
+        }
+    </script>
+</body>
+</html>

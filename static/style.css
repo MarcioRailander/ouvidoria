@@ -1,0 +1,61 @@
+:root {
+  --cetep-azul: #004AAD;
+  --cetep-vermelho: #E30613;
+}
+
+body {
+  background-color: #f8f9fa;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+h1, h2, h3, h4, label {
+  color: var(--cetep-azul);
+}
+
+.btn-primary {
+  background-color: var(--cetep-azul) !important;
+  border-color: var(--cetep-azul) !important;
+}
+
+.btn-danger {
+  background-color: var(--cetep-vermelho) !important;
+  border-color: var(--cetep-vermelho) !important;
+}
+
+.dark-theme {
+  background-color: #121212;
+  color: #f5f5f5;
+}
+
+.dark-theme .card {
+  background-color: #1e1e1e;
+  color: #f5f5f5;
+}
+
+.dark-theme h1, 
+.dark-theme h2, 
+.dark-theme h3, 
+.dark-theme h4, 
+.dark-theme label {
+  color: #f5f5f5;
+}
+
+.dark-theme .btn-outline-secondary {
+  border-color: #ccc;
+  color: #f5f5f5;
+}
+
+.hidden {
+  display: none;
+}
+
+.logo-box {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background-color: #fff;
+  padding: 10px 20px;
+  border-radius: 5px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
