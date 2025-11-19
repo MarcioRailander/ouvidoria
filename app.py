@@ -1,277 +1,201 @@
-import json
 import os
-import random
-import re
-from datetime import datetime
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+import json
+import time
+from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_mail import Mail, Message
+
+# --- Configurações Iniciais ---
+# 
+# 1. Tenta carregar variáveis de ambiente (ENV) que o Render fornece.
+# 2. Se não estiver no Render, carrega o .env localmente (para desenvolvimento).
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 app = Flask(__name__)
 
-# CONFIGURAÇÕES DO FLASK-MAIL
-# O Render lerá estas configurações nas "Environment Variables" que você criou.
-# Se você esquecer de configurá-las no Render, o sistema não enviará e-mail!
-app.config['MAIL_SERVER'] = 'smtp.gmail.com' 
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')  # Chave secreta do Render
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')  # Chave secreta do Render (o Token de 16 caracteres)
+# --- Configuração de Segurança e Admin ---
+app.secret_key = os.getenv('SECRET_KEY', 'default_secret_key_nao_usar_em_prod') 
+ADMIN_USER = os.getenv('FLASK_ADMIN_USER', 'admin')
+ADMIN_PASS = os.getenv('FLASK_ADMIN_PASS', '1234')
 
-# E-mail para onde as manifestações serão enviadas:
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL') # Chave secreta do Render
+# --- Funções de Leitura e Escrita de Dados (Arquivos JSON) ---
+
+def carregar_dados(filename):
+    """Carrega dados de um arquivo JSON. Se o arquivo não existir, retorna uma lista vazia."""
+    # O Render tem um sistema de arquivos efêmero.
+    # Se o arquivo não estiver no repositório, ele não será encontrado no Render.
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Para evitar erros no Render se o arquivo não tiver sido enviado.
+        if filename == 'manifestacoes.json':
+            return [] # Lista vazia para manifestações se não houver arquivo.
+        if filename == 'matriculas.json':
+            return [] # Lista vazia para matrículas se não houver arquivo.
+        return {} # Objeto vazio como fallback.
+    except json.JSONDecodeError:
+        return []
+
+def salvar_manifestacao(manifestacoes):
+    """Salva a lista de manifestações no arquivo JSON."""
+    # Aviso: No Render, o conteúdo deste arquivo será perdido após o servidor "dormir"
+    # ou após um novo deploy, pois não estamos usando um Banco de Dados.
+    try:
+        with open('manifestacoes.json', 'w', encoding='utf-8') as f:
+            json.dump(manifestacoes, f, ensure_ascii=False, indent=4)
+        return True
+    except Exception as e:
+        print(f"Erro ao salvar manifestação: {e}")
+        return False
+
+# --- Configuração de Email (CORREÇÃO CRÍTICA PARA O RENDER/GMAIL) ---
+# Usamos o SSL explícito na porta 465, que é mais estável em ambientes de nuvem.
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT')) # Deve ser '465'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_USE_SSL'] = True    # <--- NOVO: Ativa SSL explícito para a porta 465
+app.config['MAIL_USE_TLS'] = False   # <--- NOVO: Desativa o TLS (que causava o timeout)
 
 mail = Mail(app)
 
-# ARQUIVOS DE DADOS E CONFIGURAÇÕES
-DATA_FILE = "manifestacoes.json"
-MATRICULAS_FILE = "matriculas_validas.json" # Arquivo de matrículas válidas
-admin_user = "admin"
-# Senha de Admin também vem do Render, com '1234' como valor padrão se não configurada:
-admin_pass = os.environ.get('ADMIN_PASSWORD', '1234')
-
-# FUNÇÕES DE CARREGAMENTO
-def carregar_manifestacoes():
-    """Carrega as manifestações do arquivo JSON."""
-    if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            # Retorna o conteúdo, ou uma lista vazia se o arquivo estiver vazio/corrompido
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return []
-    return []
-
-def salvar_manifestacoes(manifestacoes):
-    """Salva as manifestações no arquivo JSON."""
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(manifestacoes, f, indent=4, ensure_ascii=False)
-
-def carregar_matriculas_validas():
-    """Carrega as matrículas válidas do arquivo JSON."""
-    if os.path.exists(MATRICULAS_FILE):
-        with open(MATRICULAS_FILE, "r", encoding="utf-8") as f:
-            try:
-                # O arquivo deve conter uma lista simples de strings de matrículas
-                return json.load(f)
-            except json.JSONDecodeError:
-                return []
-    return []
-
-# FUNÇÕES AUXILIARES
-def gerar_protocolo():
-    """Gera um protocolo único de 10 dígitos."""
-    return str(random.randint(1000000000, 9999999999))
+# --- Funções de Suporte ---
 
 def validar_matricula(matricula):
-    """Verifica se a matrícula fornecida existe na lista de matrículas válidas."""
-    matriculas_validas = carregar_matriculas_validas()
-    return matricula in matriculas_validas
+    """Verifica se a matrícula está na lista de matrículas válidas."""
+    matriculas_validas = carregar_dados('matriculas.json')
+    # O arquivo matriculas.json DEVE conter uma lista de strings. Ex: ["12345", "67890"]
+    if matricula in matriculas_validas:
+        return True
+    return False
 
-def enviar_email(protocolo, tipo):
-    """Envia uma notificação por e-mail para o administrador."""
+def enviar_email(protocolo, tipo_manifestacao):
+    """Envia email de confirmação para o administrador."""
     try:
         msg = Message(
-            f'Nova Manifestação Registrada: Protocolo {protocolo}',
+            f'Nova Manifestação Registrada (Protocolo: {protocolo})',
             sender=app.config['MAIL_USERNAME'],
-            recipients=[ADMIN_EMAIL]
+            recipients=[app.config['MAIL_USERNAME']] # Envia para o próprio e-mail do sistema
         )
-        msg.body = f"""
-        Prezado(a) Administrador(a),
-
-        Uma nova manifestação foi registrada no sistema de Ouvidoria CETEP LNAB.
-        
-        Detalhes:
-        - Protocolo: {protocolo}
-        - Tipo: {tipo.capitalize()}
-        
-        Acesse a área administrativa para visualizar e responder: {request.url_root}admin
-        """
+        msg.body = (
+            f"Uma nova manifestação foi registrada no sistema de ouvidoria.\n\n"
+            f"Protocolo: {protocolo}\n"
+            f"Tipo: {tipo_manifestacao}\n\n"
+            f"Por favor, acesse o painel de administração para visualizá-la e responder."
+        )
         mail.send(msg)
-        print(f"E-mail de notificação enviado para {ADMIN_EMAIL}.")
+        print(f"Email de protocolo {protocolo} enviado com sucesso!")
+        return True
     except Exception as e:
-        print(f"ERRO ao enviar e-mail: {e}")
-        # Loga o erro, mas não impede o registro da manifestação
+        # CRÍTICO: Imprime o erro no log para debug (agora veremos o erro real do SMTP)
+        print(f"ERRO AO ENVIAR EMAIL: {e}") 
+        return False
 
+# --- Rotas da Aplicação ---
 
-# ROTAS DA APLICAÇÃO
 @app.route('/')
 def index():
-    """Rota principal, renderiza o formulário de ouvidoria."""
+    """Página inicial da ouvidoria com formulário de registro."""
     return render_template('index.html')
 
 @app.route('/registrar', methods=['POST'])
 def registrar():
-    """Recebe e processa o registro de uma nova manifestação."""
-    try:
-        # Pega os dados do formulário
-        nome = request.form.get('nome', 'Anônimo').strip()
-        cpf = request.form.get('cpf', '').strip()
-        matricula = request.form.get('matricula', '').strip()
-        tipo = request.form.get('tipo', '').strip()
-        descricao = request.form.get('descricao', '').strip()
-        
-        # Limpeza e Validação de campos
-        cpf = re.sub(r'[^0-9]', '', cpf)
-        matricula = re.sub(r'[^0-9]', '', matricula)
-        
-        if len(cpf) != 11 or not cpf.isdigit():
-            return jsonify({'erro': 'CPF inválido. Deve conter 11 dígitos numéricos.'}), 400
-
-        if len(matricula) != 8 or not matricula.isdigit():
-             return jsonify({'erro': 'Matrícula inválida. Deve conter 8 dígitos numéricos.'}), 400
-        
-        if not validar_matricula(matricula):
-             return jsonify({'erro': 'Matrícula não encontrada na lista de estudantes válidos.'}), 400
-        
-        if not tipo or not descricao:
-            return jsonify({'erro': 'Todos os campos obrigatórios (Tipo, Descrição) devem ser preenchidos.'}), 400
-
-        # Geração e Registro
-        protocolo = gerar_protocolo()
-        manifestacoes = carregar_manifestacoes()
-
-        nova_manifestacao = {
-            'protocolo': protocolo,
-            'nome': nome,
-            'cpf': cpf,
-            'matricula': matricula, # Novo campo
-            'tipo': tipo,
-            'descricao': descricao,
-            'data': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-            'resposta': None 
-        }
-
-        manifestacoes.append(nova_manifestacao)
-        salvar_manifestacoes(manifestacoes)
-
-        # Envia a notificação
-        enviar_email(protocolo, tipo)
-
-        return jsonify({'protocolo': protocolo}), 200
-
-    except Exception as e:
-        print(f"Erro no registro: {e}")
-        return jsonify({'erro': f'Erro interno ao registrar manifestação: {e}'}), 500
-
-@app.route('/consultar', methods=['POST'])
-def consultar():
-    """Consulta manifestação por protocolo."""
-    protocolo = request.form.get('protocolo', '').strip()
+    """Recebe e processa o formulário de manifestação."""
     
-    if not protocolo or not protocolo.isdigit():
-        return jsonify({'erro': 'Protocolo inválido.'}), 400
-
-    manifestacoes = carregar_manifestacoes()
+    # 1. Coleta e sanitiza os dados do formulário
+    nome = request.form.get('nome').strip()
+    matricula = request.form.get('matricula').strip()
+    email = request.form.get('email').strip()
+    tipo = request.form.get('tipo')
+    descricao = request.form.get('descricao').strip()
     
-    for m in manifestacoes:
-        if m['protocolo'] == protocolo:
-            return jsonify(m), 200
+    # 2. Validação de Matrícula
+    if not validar_matricula(matricula):
+        flash('Erro: Matrícula inválida ou não encontrada. Por favor, verifique.', 'error')
+        return redirect(url_for('index'))
 
-    return jsonify({'erro': 'Manifestação não encontrada.'}), 404
+    # 3. Geração de Protocolo
+    protocolo = f"CETEP-{int(time.time())}" # Protocolo baseado no timestamp
 
-@app.route('/consultar_cpf', methods=['POST'])
-def consultar_cpf():
-    """Consulta todas as manifestações de um CPF."""
-    cpf = request.form.get('cpfBusca', '').strip()
-    cpf = re.sub(r'[^0-9]', '', cpf)
+    # 4. Criação do Objeto Manifestação
+    nova_manifestacao = {
+        'protocolo': protocolo,
+        'nome': nome,
+        'matricula': matricula,
+        'email': email,
+        'tipo': tipo,
+        'descricao': descricao,
+        'data': time.strftime('%Y-%m-%d %H:%M:%S'),
+        'status': 'Pendente',
+        'resposta': 'Aguardando análise da administração.',
+    }
+
+    # 5. Carrega, Adiciona e Salva
+    manifestacoes = carregar_dados('manifestacoes.json')
+    manifestacoes.append(nova_manifestacao)
     
-    if len(cpf) != 11 or not cpf.isdigit():
-        return jsonify({'erro': 'CPF inválido. Deve conter 11 dígitos numéricos.'}), 400
-
-    manifestacoes = carregar_manifestacoes()
-    
-    # Filtra manifestações que correspondam ao CPF (sem a resposta do admin para manter o foco)
-    resultados = [
-        {'protocolo': m['protocolo'], 'nome': m['nome'], 'cpf': m['cpf'], 'matricula': m['matricula'], 
-         'tipo': m['tipo'], 'descricao': m['descricao'], 'resposta': m['resposta']}
-        for m in manifestacoes if m['cpf'] == cpf
-    ]
-
-    return jsonify(resultados), 200
-
-@app.route('/consultar_matricula', methods=['POST'])
-def consultar_matricula():
-    """Consulta todas as manifestações de uma Matrícula. (NOVA ROTA)"""
-    matricula = request.form.get('matriculaBusca', '').strip()
-    matricula = re.sub(r'[^0-9]', '', matricula)
-    
-    if len(matricula) != 8 or not matricula.isdigit():
-        return jsonify({'erro': 'Matrícula inválida. Deve conter 8 dígitos numéricos.'}), 400
-
-    manifestacoes = carregar_manifestacoes()
-    
-    # Filtra manifestações que correspondam à Matrícula
-    resultados = [
-        {'protocolo': m['protocolo'], 'nome': m['nome'], 'cpf': m['cpf'], 'matricula': m['matricula'], 
-         'tipo': m['tipo'], 'descricao': m['descricao'], 'resposta': m['resposta']}
-        for m in manifestacoes if m.get('matricula') == matricula
-    ]
-
-    return jsonify(resultados), 200
-
-
-@app.route('/admin', methods=['GET'])
-def admin_page():
-    """Página de login do administrador."""
-    return render_template('admin.html')
-
-@app.route('/admin_login', methods=['POST'])
-def admin_login():
-    """Valida o login do administrador."""
-    usuario = request.form.get('usuarioAdmin')
-    senha = request.form.get('senhaAdmin')
-    
-    if usuario == admin_user and senha == admin_pass:
-        # Se o login for bem-sucedido, redireciona para a listagem (usando GET)
-        return jsonify({'redirect': url_for('listar_manifestacoes')}), 200
+    if salvar_manifestacao(manifestacoes):
+        # 6. Envio de Email (AGORA COM SSL CORRIGIDO)
+        if enviar_email(protocolo, tipo):
+            flash(f'Manifestação registrada com sucesso! Seu protocolo é: {protocolo}', 'success')
+        else:
+            flash(f'Manifestação registrada (Protocolo: {protocolo}), mas houve um erro ao enviar a notificação por email.', 'warning')
     else:
-        return jsonify({'erro': 'Credenciais inválidas.'}), 401
+        flash('Erro interno ao salvar a manifestação. Tente novamente mais tarde.', 'error')
+        
+    return redirect(url_for('index'))
 
-@app.route('/listar_manifestacoes', methods=['GET'])
-def listar_manifestacoes():
-    """Lista todas as manifestações (acessível apenas após login)."""
-    # Em uma aplicação real, aqui haveria uma verificação de sessão/cookie
-    # Mas para simplificação, vamos apenas listar os dados.
-    manifestacoes = carregar_manifestacoes()
-    # A página admin.html (que não foi mostrada aqui) deve usar AJAX ou Jinja2 para exibir esta lista
-    return render_template('admin_dashboard.html', manifestacoes=manifestacoes) 
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_login():
+    """Página de login administrativo."""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        if username == ADMIN_USER and password == ADMIN_PASS:
+            # Em uma aplicação real, aqui você usaria sessões para manter o login.
+            # Usaremos um redirecionamento simples para o propósito desta demonstração.
+            return redirect(url_for('admin_dashboard'))
+        else:
+            flash('Usuário ou senha inválidos.', 'error')
+            
+    return render_template('admin_login.html')
 
-# Se você não tem o admin_dashboard.html, use o admin.html (que provavelmente é só o login)
-# ATENÇÃO: Se você só tem o admin.html, esta rota listando os dados não funcionará,
-# mas para fins de demonstração, ela retorna os dados. Você precisa garantir que admin.html
-# tenha um código para fazer um GET nesta rota após o login.
-# Por enquanto, vou retornar um JSON para fins de depuração.
-@app.route('/api/manifestacoes', methods=['GET'])
-def api_manifestacoes():
-    """API para listar todas as manifestações para o frontend Admin."""
-    manifestacoes = carregar_manifestacoes()
-    return jsonify(manifestacoes)
+@app.route('/admin/dashboard')
+def admin_dashboard():
+    """Painel de administração (após login)."""
+    # Em uma aplicação real, você faria a checagem de sessão aqui.
+    manifestacoes = carregar_dados('manifestacoes.json')
+    # Ordena as manifestações, as mais recentes primeiro (opcional)
+    manifestacoes.sort(key=lambda x: x.get('data', ''), reverse=True)
+    return render_template('admin_dashboard.html', manifestacoes=manifestacoes)
 
-@app.route('/responder', methods=['POST'])
-def responder_manifestacao():
-    """Registra a resposta do administrador a uma manifestação."""
-    protocolo = request.form.get('protocolo')
-    resposta = request.form.get('resposta')
-
-    if not protocolo or not resposta:
-        return jsonify({'erro': 'Protocolo e resposta são obrigatórios.'}), 400
-
-    manifestacoes = carregar_manifestacoes()
-    encontrada = False
-
-    for m in manifestacoes:
-        if m['protocolo'] == protocolo:
-            m['resposta'] = resposta
-            encontrada = True
+@app.route('/admin/responder/<protocolo>', methods=['POST'])
+def admin_responder(protocolo):
+    """Recebe a resposta do administrador e atualiza a manifestação."""
+    nova_resposta = request.form.get('resposta').strip()
+    
+    manifestacoes = carregar_dados('manifestacoes.json')
+    
+    for man in manifestacoes:
+        if man['protocolo'] == protocolo:
+            man['resposta'] = nova_resposta
+            man['status'] = 'Respondida'
             break
     
-    if encontrada:
-        salvar_manifestacoes(manifestacoes)
-        return jsonify({'mensagem': 'Resposta registrada com sucesso.'}), 200
+    if salvar_manifestacao(manifestacoes):
+        flash(f'Manifestação {protocolo} respondida com sucesso!', 'success')
     else:
-        return jsonify({'erro': 'Manifestação não encontrada.'}), 404
+        flash('Erro ao salvar a resposta no arquivo.', 'error')
+        
+    return redirect(url_for('admin_dashboard'))
 
+# --- Início da Aplicação ---
 if __name__ == '__main__':
-    # Esta parte é apenas para rodar no seu computador local.
-    # O Render usará o Gunicorn e ignorará estas linhas.
+    # Esta parte só roda no ambiente local (não no Render/Gunicorn)
+    print("Atenção: Rodando localmente. Use 'gunicorn app:app' para produção.")
     app.run(debug=True)
