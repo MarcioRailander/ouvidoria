@@ -28,6 +28,11 @@
         textarea { width: 100%; padding: 10px; border: 1px solid #ccc; margin-top: 10px; box-sizing: border-box; border-radius: 4px; }
         .btn-responder { background-color: #28a745; color: white; }
         .btn-cancel { background-color: #6c757d; color: white; }
+
+        /* NOVO: Estilos da mensagem de status */
+        .status-success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
@@ -38,6 +43,10 @@
             <a href="/admin" class="button btn-logout">Sair</a> 
         </div>
     </div>
+    
+    <!-- NOVO: Área para mensagens de status (substitui alert()) -->
+    <div id="statusMessage" class="hidden" style="padding: 10px; margin-bottom: 20px; border-radius: 4px; text-align: center;"></div>
+
     <p>Gerencie e responda às manifestações do CETEP LNAB.</p>
 
     <div id="loadingMessage" style="text-align: center; font-size: 1.2em; padding: 20px;">
@@ -45,12 +54,13 @@
     </div>
 
     <div id="manifestacoesContainer">
-        </div>
+    </div>
 
     <div id="noManifestations" style="text-align: center; color: #666; padding: 20px; display: none;">
         Nenhuma manifestação encontrada.
     </div>
     
+    <!-- Modal de Resposta -->
     <div id="responseModal" class="modal">
         <div class="modal-content">
             <span onclick="fecharModal()" class="close">&times;</span>
@@ -79,14 +89,32 @@
         const modalProtocolo = document.getElementById('modalProtocolo');
         const responseTextarea = document.getElementById('responseTextarea');
         const sendResponseButton = document.getElementById('sendResponseButton');
+        const statusMessage = document.getElementById('statusMessage');
+
+        // NOVO: Função para exibir mensagens na tela (substituindo alert)
+        function displayStatusMessage(type, message) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-${type}`; // 'success' ou 'error'
+            statusMessage.classList.remove('hidden');
+            // Esconde a mensagem após 5 segundos
+            setTimeout(() => {
+                statusMessage.classList.add('hidden');
+            }, 5000);
+        }
 
         function carregarManifestacoes(force = false) {
             loadingMessage.style.display = 'block';
             container.innerHTML = '';
             noManifestations.style.display = 'none';
+            statusMessage.classList.add('hidden'); // Oculta mensagens antigas
 
             fetch('/api/manifestacoes')
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Erro ao carregar lista de manifestações. Status: ' + response.status);
+                }
+                return response.json();
+            })
             .then(data => {
                 loadingMessage.style.display = 'none';
                 
@@ -95,21 +123,25 @@
                     return;
                 }
 
+                // O JSON data deve conter a lista de manifestações
                 data.reverse().forEach(m => {
+                    // Adiciona data se não existir no objeto (assumindo que o campo 'data' foi adicionado no registro)
+                    if (!m.data) m.data = 'Data não informada'; 
                     const card = criarCardManifestacao(m);
                     container.appendChild(card);
                 });
             })
             .catch(error => {
                 loadingMessage.style.display = 'none';
-                container.innerHTML = `<div style="padding: 10px; background-color: #fdd; color: #a00;">Erro ao carregar dados: ${error.message}</div>`;
+                displayStatusMessage('error', `Erro ao carregar dados: ${error.message}`);
                 console.error('Erro ao buscar manifestações:', error);
             });
         }
 
         function criarCardManifestacao(m) {
             const card = document.createElement('div');
-            const isAnswered = m.resposta !== null && m.resposta !== '';
+            // Garante que o campo de resposta é uma string vazia se for null
+            const isAnswered = m.resposta !== null && m.resposta !== ''; 
             
             card.className = 'manifestacao-card';
             
@@ -118,7 +150,7 @@
                 <p><strong>Protocolo:</strong> ${m.protocolo}</p>
                 <p><strong>Status:</strong> <span class="${isAnswered ? 'status-respondida' : 'status-pendente'}">${isAnswered ? 'Respondida' : 'Pendente'}</span></p>
                 <p><strong>Data:</strong> ${m.data}</p>
-                <p><strong>Nome:</strong> ${m.nome}</p>
+                <p><strong>Nome:</strong> ${m.nome || 'Anônimo'}</p>
                 <p><strong>CPF:</strong> ${m.cpf}</p>
                 <p><strong>Matrícula:</strong> ${m.matricula}</p>
                 
@@ -155,7 +187,8 @@
             
             const resposta = responseTextarea.value.trim();
             if (resposta.length < 10) {
-                alert('A resposta deve ter pelo menos 10 caracteres.');
+                // Feedback visual para o admin sobre o erro
+                displayStatusMessage('error', 'A resposta deve ter pelo menos 10 caracteres.');
                 return;
             }
 
@@ -173,16 +206,16 @@
             .then(response => response.json())
             .then(data => {
                 if (data.mensagem) {
-                    alert(data.mensagem); 
+                    displayStatusMessage('success', data.mensagem); 
                     fecharModal();
                     carregarManifestacoes(true); // Recarrega a lista
                 } else {
-                    alert('Erro ao enviar resposta: ' + (data.erro || 'Erro desconhecido.'));
+                    displayStatusMessage('error', 'Erro ao enviar resposta: ' + (data.erro || 'Erro desconhecido.'));
                 }
             })
             .catch(error => {
                 console.error('Erro na requisição de resposta:', error);
-                alert('Erro de conexão com o servidor ao enviar a resposta.');
+                displayStatusMessage('error', 'Erro de conexão com o servidor ao enviar a resposta.');
             })
             .finally(() => {
                 sendResponseButton.disabled = false;
