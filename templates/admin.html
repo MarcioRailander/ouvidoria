@@ -37,38 +37,51 @@
     </div>
 
     <script>
+        // Função para mostrar mensagens de status
+        function showMessage(type, content) {
+            const messageBox = document.getElementById('messageBox');
+            messageBox.textContent = content;
+            messageBox.className = type; // 'success' ou 'error'
+            messageBox.classList.remove('hidden');
+        }
+
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const form = e.target;
-            const messageBox = document.getElementById('messageBox');
             const loginButton = document.getElementById('loginButton');
 
+            // 1. Desabilita o botão e limpa mensagens
             loginButton.disabled = true;
             loginButton.textContent = 'Aguarde...';
-
-            messageBox.className = 'hidden';
-            messageBox.textContent = '';
+            document.getElementById('messageBox').classList.add('hidden');
             
+            // 2. Requisição para o endpoint de login
             fetch('/admin_login', {
                 method: 'POST',
+                // Envia os dados do formulário como URLSearchParams
                 body: new URLSearchParams(new FormData(form))
             })
+            // 3. Processa a resposta (incluindo o status HTTP)
             .then(response => response.json().then(data => ({ status: response.status, body: data })))
             .then(({ status, body }) => {
                 if (status === 200) {
-                    messageBox.className = 'success';
-                    messageBox.textContent = 'Login realizado com sucesso! Redirecionando...';
-                    window.location.href = body.redirect; 
+                    // Login bem-sucedido
+                    showMessage('success', 'Login realizado com sucesso! Redirecionando...');
+                    // O backend deve retornar { redirect: '/admin_dashboard' }
+                    if (body.redirect) {
+                        window.location.href = body.redirect; 
+                    }
                 } else {
-                    messageBox.className = 'error';
-                    messageBox.textContent = body.erro || 'Credenciais inválidas.';
+                    // Erro de credenciais (ou outro erro do servidor)
+                    showMessage('error', body.erro || 'Credenciais inválidas. Tente novamente.');
                 }
             })
+            // 4. Tratamento de erro de rede
             .catch(error => {
                 console.error('Erro na requisição:', error);
-                messageBox.className = 'error';
-                messageBox.textContent = 'Erro de conexão com o servidor.';
+                showMessage('error', 'Erro de conexão com o servidor. Verifique sua rede.');
             })
+            // 5. Restaura o botão em qualquer cenário
             .finally(() => {
                 loginButton.disabled = false;
                 loginButton.textContent = 'Entrar';
