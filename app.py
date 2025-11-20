@@ -1,223 +1,187 @@
 import os
 import json
-import random
-import re
+import uuid
 from datetime import datetime
-from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
-from flask_mail import Mail, Message
+from flask import Flask, request, jsonify
+from flask_cors import CORS
 
+# --- Importações para Banco de Dados (Firebase Admin SDK) ---
 try:
-    from dotenv import load_dotenv
-    load_dotenv()
+    import firebase_admin
+    from firebase_admin import credentials, firestore
+    
+    # Placeholder para inicialização do Firebase
+    def initialize_firebase_admin():
+        try:
+            # Tenta carregar a configuração a partir da variável de ambiente (melhor prática no Render)
+            if os.environ.get('FIREBASE_CONFIG_JSON'):
+                # O JSON é carregado da variável de ambiente
+                config_json = json.loads(os.environ.get('FIREBASE_CONFIG_JSON'))
+                cred = credentials.Certificate(config_json)
+            else:
+                # Se a variável de ambiente não estiver definida, avisa e retorna None
+                print("AVISO: Variável de ambiente 'FIREBASE_CONFIG_JSON' não encontrada. Usando credenciais placeholder.")
+                return None 
+
+            if not firebase_admin._apps:
+                firebase_admin.initialize_app(cred)
+            
+            return firestore.client()
+        except Exception as e:
+            print(f"ERRO: Falha ao inicializar o Firebase Admin: {e}")
+            return None
+
+    db = initialize_firebase_admin()
+    if db is None:
+        print("Atenção: O Firestore não foi inicializado. Funções de banco de dados estarão desativadas.")
+
 except ImportError:
-    pass
+    print("AVISO: A biblioteca 'firebase-admin' não foi encontrada. Funções de banco de dados estarão desativadas.")
+    db = None
+except Exception as e:
+    print(f"ERRO INESPERADO ao inicializar o Firebase Admin: {e}")
+    db = None
 
+# ----------------- CONFIGURAÇÃO DO FLASK -----------------
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'chave_secreta_padrao_muito_insegura')
+# Permite requisições de qualquer origem para facilitar a comunicação com o frontend
+CORS(app) 
 
-DATA_FILE = "manifestacoes.json"
-MATRICULAS_FILE = "matriculas_validas.json"
+# ----------------- FUNÇÃO DE E-MAIL (AGORA É SÓ UM PRINT/PLACEHOLDER) -----------------
+def enviar_email_notificacao_placeholder(protocolo: str, tipo: str, descricao: str):
+    """
+    Função Placeholder que simula o envio de e-mail.
+    
+    AVISO: ESTA FUNÇÃO NÃO ENVIA E-MAIL DE VERDADE NO RENDER.
+    Ela serve apenas para mostrar onde a função de e-mail deve ser chamada.
+    Você deve substituí-la pela implementação do SendGrid para que funcione.
+    """
+    print("--- Tentativa de Envio de E-mail ---")
+    print(f"Protocolo: {protocolo}")
+    print(f"Tipo: {tipo}")
+    print("STATUS: FALHA (Este é um placeholder. Use SendGrid!)")
+    print("-------------------------------------")
+    return False # Retorna False porque o envio real falhará
 
-ADMIN_USER = os.getenv('FLASK_ADMIN_USER', 'admin')
-ADMIN_PASS = os.getenv('FLASK_ADMIN_PASS', '1234')
-ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
+# ----------------- ROTAS DO FLASK -----------------
 
-app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 465))
-app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
-app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
-app.config['MAIL_USE_TLS'] = False
-app.config['MAIL_USE_SSL'] = True
+@app.route('/api/manifestacao', methods=['POST'])
+def registrar_manifestacao():
+    """
+    Recebe os dados do frontend, salva no Firestore e tenta enviar o e-mail (placeholder).
+    """
+    if not request.is_json:
+        return jsonify({"message": "Requisição deve ser JSON"}), 400
 
-mail = Mail(app)
+    data = request.get_json()
+    
+    # 1. Validação simples dos dados (ajuste conforme seu formulário)
+    required_fields = ['tipo', 'descricao', 'nome', 'email', 'telefone']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"message": f"Campo obrigatório '{field}' faltando."}), 400
 
-def carregar_dados(filename):
-    try:
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8') as f:
-                return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        pass
+    # 2. Geração do Protocolo e Data
+    # Formato do Protocolo: UUID + timestamp
+    protocolo = f"{uuid.uuid4().hex[:8]}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    data_registro = datetime.now()
 
-    if filename == DATA_FILE or filename == MATRICULAS_FILE:
-        return []
-    return {}
+    # 3. Preparação dos dados para salvar
+    manifestacao_doc = {
+        'protocolo': protocolo,
+        'tipo': data['tipo'],
+        'descricao': data['descricao'],
+        'nome': data['nome'],
+        'email': data['email'],
+        'telefone': data['telefone'],
+        'data_registro': data_registro,
+        'status': 'Aguardando Análise',
+        'resposta': None # Campo para a resposta do administrador
+    }
 
-def salvar_manifestacoes(manifestacoes):
-    try:
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(manifestacoes, f, indent=4, ensure_ascii=False)
-        return True
-    except Exception as e:
-        print(f"ERRO ao salvar manifestações: {e}")
-        return False
+    # 4. Salvamento no Firestore
+    salvamento_sucesso = False
+    if db:
+        try:
+            # Salva na coleção 'manifestacoes' usando o protocolo como ID do documento
+            doc_ref = db.collection('manifestacoes').document(protocolo)
+            doc_ref.set(manifestacao_doc)
+            print(f"Manifestação {protocolo} salva no Firestore com sucesso.")
+            salvamento_sucesso = True
+        except Exception as e:
+            print(f"ERRO NO FIRESTORE: Falha ao salvar manifestação: {e}")
+            
+    # 5. Tentativa de Envio do E-mail (CHAMADA DO PLACEHOLDER)
+    email_sucesso = enviar_email_notificacao_placeholder(
+        protocolo=protocolo, 
+        tipo=manifestacao_doc['tipo'], 
+        descricao=manifestacao_doc['descricao']
+    )
 
-def gerar_protocolo():
-    return str(random.randint(1000000000, 9999999999))
-
-def validar_matricula(matricula):
-    matriculas_validas = carregar_dados(MATRICULAS_FILE)
-    return matricula in matriculas_validas
-
-def enviar_email(protocolo, tipo_manifestacao):
-    if not app.config.get('MAIL_USERNAME') or not app.config.get('MAIL_PASSWORD') or not ADMIN_EMAIL:
-        print("ERRO CRÍTICO: Configurações de e-mail (MAIL_USERNAME/PASSWORD ou ADMIN_EMAIL) estão vazias!")
-        return False
-
-    try:
-        msg = Message(
-            f'Nova Manifestação Registrada (Protocolo: {protocolo})',
-            sender=app.config['MAIL_USERNAME'],
-            recipients=[ADMIN_EMAIL]
-        )
-        msg.body = (
-            f"Uma nova manifestação foi registrada no sistema de ouvidoria.\n\n"
-            f"Protocolo: {protocolo}\n"
-            f"Tipo: {tipo_manifestacao.capitalize()}\n\n"
-            f"Por favor, acesse a área administrativa para visualizá-la."
-        )
-        mail.send(msg)
-        print(f"Email de notificação para protocolo {protocolo} enviado com sucesso!")
-        return True
-    except Exception as e:
-        print(f"ERRO AO ENVIAR EMAIL (SMTP): {e}")
-        return False
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/registrar', methods=['POST'])
-def registrar():
-    try:
-        nome = request.form.get('nome', 'Anônimo').strip()
-        cpf = re.sub(r'[^0-9]', '', request.form.get('cpf', '').strip())
-        matricula = re.sub(r'[^0-9]', '', request.form.get('matricula', '').strip())
-        tipo = request.form.get('tipo', '').strip()
-        descricao = request.form.get('descricao', '').strip()
-
-        if len(cpf) != 11 or not cpf.isdigit():
-            flash('CPF inválido. Deve conter 11 dígitos numéricos.', 'error')
-            return redirect(url_for('index'))
-
-        if len(matricula) != 8 or not matricula.isdigit():
-            flash('Matrícula inválida. Deve conter 8 dígitos numéricos.', 'error')
-            return redirect(url_for('index'))
-
-        if not validar_matricula(matricula):
-            flash('Matrícula não encontrada na lista de estudantes válidos.', 'error')
-            return redirect(url_for('index'))
-
-        if not tipo or not descricao:
-            flash('Todos os campos obrigatórios (Tipo, Descrição) devem ser preenchidos.', 'error')
-            return redirect(url_for('index'))
-
-        protocolo = gerar_protocolo()
-        manifestacoes = carregar_dados(DATA_FILE)
-
-        nova_manifestacao = {
-            'protocolo': protocolo,
-            'nome': nome,
-            'cpf': cpf,
-            'matricula': matricula,
-            'tipo': tipo,
-            'descricao': descricao,
-            'data': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-            'status': 'Pendente',
-            'resposta': None
+    # 6. Resposta ao Cliente
+    if salvamento_sucesso:
+        response_payload = {
+            "message": "Manifestação registrada. E-mail de notificação não pôde ser enviado (Implementação SendGrid pendente).",
+            "protocolo": protocolo,
+            "email_status": "pendente"
         }
-
-        manifestacoes.append(nova_manifestacao)
-
-        if salvar_manifestacoes(manifestacoes):
-            flash(f'Manifestação registrada com sucesso! Seu protocolo é: {protocolo}', 'success')
-            enviar_email(protocolo, tipo)
-        else:
-            flash(f'Manifestação registrada (Protocolo: {protocolo}), mas houve um erro ao salvar o arquivo.', 'warning')
-        
-        return redirect(url_for('index'))
-
-    except Exception as e:
-        print(f"Erro no registro: {e}")
-        flash('Erro interno ao registrar manifestação. Tente novamente mais tarde.', 'error')
-        return redirect(url_for('index'))
-
-@app.route('/consultar', methods=['POST'])
-def consultar():
-    protocolo = request.form.get('protocolo', '').strip()
-    if not protocolo or not protocolo.isdigit():
-        return jsonify({'erro': 'Protocolo inválido.'}), 400
-
-    manifestacoes = carregar_dados(DATA_FILE)
-    
-    for m in manifestacoes:
-        if m['protocolo'] == protocolo:
-            return jsonify({
-                'protocolo': m['protocolo'], 
-                'tipo': m['tipo'], 
-                'descricao': m['descricao'], 
-                'data': m['data'],
-                'status': m['status'],
-                'resposta': m['resposta']
-            }), 200
-
-    return jsonify({'erro': 'Manifestação não encontrada.'}), 404
-
-@app.route('/admin', methods=['GET'])
-def admin_page():
-    return render_template('admin_login.html')
-
-@app.route('/admin_login', methods=['POST'])
-def admin_login():
-    usuario = request.form.get('usuarioAdmin')
-    senha = request.form.get('senhaAdmin')
-    
-    if usuario == ADMIN_USER and senha == ADMIN_PASS:
-        return redirect(url_for('listar_manifestacoes'))
+        return jsonify(response_payload), 201
     else:
-        flash('Credenciais inválidas.', 'error')
-        return redirect(url_for('admin_page'))
+        return jsonify({"message": "Erro interno ao registrar manifestação (Falha no banco de dados)."}), 500
 
-@app.route('/listar_manifestacoes', methods=['GET'])
-def listar_manifestacoes():
-    manifestacoes = carregar_dados(DATA_FILE)
-    manifestacoes.sort(key=lambda x: datetime.strptime(x['data'], "%d/%m/%Y %H:%M:%S"), reverse=True)
+@app.route('/', methods=['GET'])
+def home():
+    """ Rota de boas-vindas para verificar se o servidor está ativo. """
+    return jsonify({"message": "API de Ouvidoria CETEP está rodando! (Versão sem SendGrid)", "status": "OK"}), 200
+
+# Esta rota é um placeholder, você precisa implementar a lógica de listagem no Firestore
+@app.route('/api/manifestacoes', methods=['GET'])
+def get_manifestacoes():
+    """ Retorna a lista de manifestações (PLACEHOLDER). """
+    if db:
+        try:
+            # Lógica para buscar todas as manifestações
+            manifestacoes_ref = db.collection('manifestacoes')
+            docs = manifestacoes_ref.stream()
+            lista_manifestacoes = [doc.to_dict() for doc in docs]
+            
+            return jsonify(lista_manifestacoes), 200
+        except Exception as e:
+             return jsonify({"error": f"Erro ao buscar manifestações: {e}"}), 500
     
-    return render_template('admin_dashboard.html', manifestacoes=manifestacoes)
+    # Retorna dados mockados se o DB falhar
+    return jsonify([
+        {
+            "protocolo": "MOCK-001", "tipo": "Denúncia", "descricao": "Manifestação de Teste 1.",
+            "data": "2025-11-20", "nome": "Mock User", "cpf": "111.111.111-11", "matricula": "12345",
+            "resposta": None, "status": "Pendente"
+        }
+    ]), 200
 
+# Esta rota é um placeholder, você precisa implementar a lógica de atualização no Firestore
 @app.route('/responder', methods=['POST'])
 def responder_manifestacao():
+    """ Atualiza a manifestação com uma resposta do administrador (PLACEHOLDER). """
     protocolo = request.form.get('protocolo')
     resposta = request.form.get('resposta')
-
-    if not protocolo or not resposta:
-        flash('Protocolo e resposta são obrigatórios.', 'error')
-        return redirect(url_for('listar_manifestacoes'))
-
-    manifestacoes = carregar_dados(DATA_FILE)
-    encontrada = False
-
-    for m in manifestacoes:
-        if m['protocolo'] == protocolo:
-            m['resposta'] = resposta
-            m['status'] = 'Respondida'
-            encontrada = True
-            break
     
-    if encontrada:
-        if salvar_manifestacoes(manifestacoes):
-            flash(f'Resposta para o protocolo {protocolo} registrada com sucesso.', 'success')
-        else:
-            flash('Erro ao salvar a resposta no arquivo.', 'error')
-    else:
-        flash('Manifestação não encontrada.', 'error')
+    if not protocolo or not resposta:
+        return jsonify({"erro": "Dados incompletos."}), 400
 
-    return redirect(url_for('listar_manifestacoes'))
+    if db:
+        try:
+            doc_ref = db.collection('manifestacoes').document(protocolo)
+            doc_ref.update({
+                'resposta': resposta,
+                'status': 'Respondida'
+            })
+            return jsonify({"mensagem": f"Manifestação {protocolo} respondida com sucesso no Firestore."})
+        except Exception as e:
+            return jsonify({"erro": f"Erro ao atualizar Firestore: {e}"}), 500
+            
+    return jsonify({"mensagem": f"Manifestação {protocolo} atualizada localmente (DB desligado)."}), 200
+
 
 if __name__ == '__main__':
-    for filename in [DATA_FILE, MATRICULAS_FILE]:
-        if not os.path.exists(filename):
-            with open(filename, 'w', encoding='utf-8') as f:
-                json.dump([], f, indent=4)
-                
-    app.run(debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=True)
