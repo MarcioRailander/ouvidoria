@@ -2,4 +2,3 @@ Flask
 gunicorn
 Flask-Mail
 python-dotenv
-resend
