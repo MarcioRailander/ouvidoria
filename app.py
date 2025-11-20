@@ -15,27 +15,26 @@ except ImportError:
 
 app = Flask(__name__) 
 
-# --- CONFIGURAÇÕES DO FLASK-MAIL (CORRIGIDO PARA SSL/PORTA 465) ---
-# Esta configuração é mais estável para o Gmail em ambientes de cloud.
-app.config['MAIL_SERVER'] = 'smtp.gmail.com' 
-app.config['MAIL_PORT'] = 465               # <-- PORTA 465 (SSL)
-app.config['MAIL_USE_TLS'] = False          # <-- Desativa TLS
-app.config['MAIL_USE_SSL'] = True           # <-- Ativa SSL
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME') 
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD') 
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_TLS'] = False
+app.config['MAIL_USE_SSL'] = True
 
-# E-mail para onde as manifestações serão enviadas: 
-ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL') 
+
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', "cetepouvidoria6@gmail.com")
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', "iuuo phxy wxab wuxz")
+
+
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', "cetepouvidoria6@gmail.com")
 
 mail = Mail(app) 
 
-# ARQUIVOS DE DADOS E CONFIGURAÇÕES 
+ 
 DATA_FILE = "manifestacoes.json" 
 MATRICULAS_FILE = "matriculas_validas.json" 
 admin_user = "admin" 
 admin_pass = os.environ.get('ADMIN_PASSWORD', '1234') 
 
-# FUNÇÕES DE CARREGAMENTO 
 def carregar_manifestacoes(): 
     """Carrega as manifestações do arquivo JSON.""" 
     if os.path.exists(DATA_FILE): 
@@ -48,8 +47,7 @@ def carregar_manifestacoes():
 
 def salvar_manifestacoes(manifestacoes): 
     """Salva as manifestações no arquivo JSON.""" 
-    # ATENÇÃO: Em ambientes de hosting como Render, este arquivo pode ser resetado. 
-    # Para persistência de dados em produção, use um banco de dados real (ex: PostgreSQL).
+   
     with open(DATA_FILE, "w", encoding="utf-8") as f: 
         json.dump(manifestacoes, f, indent=4, ensure_ascii=False) 
 
@@ -63,7 +61,7 @@ def carregar_matriculas_validas():
                 return [] 
     return [] 
 
-# FUNÇÕES AUXILIARES 
+
 def gerar_protocolo(): 
     """Gera um protocolo único de 10 dígitos.""" 
     return str(random.randint(1000000000, 9999999999)) 
@@ -102,7 +100,7 @@ Acesse a área administrativa para visualizar e responder: {request.url_root}adm
         print(f"ERRO ao enviar e-mail (SMTP Error): {e}") 
 
 
-# ROTAS DA APLICAÇÃO 
+
 @app.route('/') 
 def index(): 
     """Rota principal, renderiza o formulário de ouvidoria.""" 
@@ -112,14 +110,14 @@ def index():
 def registrar(): 
     """Recebe e processa o registro de uma nova manifestação.""" 
     try: 
-        # Pega os dados do formulário 
+        
         nome = request.form.get('nome', 'Anônimo').strip() 
         cpf = request.form.get('cpf', '').strip() 
         matricula = request.form.get('matricula', '').strip() 
         tipo = request.form.get('tipo', '').strip() 
         descricao = request.form.get('descricao', '').strip() 
         
-        # Limpeza e Validação de campos 
+      
         cpf = re.sub(r'[^0-9]', '', cpf) 
         matricula = re.sub(r'[^0-9]', '', matricula) 
         
@@ -134,8 +132,7 @@ def registrar():
         
         if not tipo or not descricao: 
             return jsonify({'erro': 'Todos os campos obrigatórios (Tipo, Descrição) devem ser preenchidos.'}), 400 
-
-        # Geração e Registro 
+ 
         protocolo = gerar_protocolo() 
         manifestacoes = carregar_manifestacoes() 
 
@@ -153,7 +150,7 @@ def registrar():
         manifestacoes.append(nova_manifestacao) 
         salvar_manifestacoes(manifestacoes) 
 
-        # Envia a notificação 
+       
         enviar_email(protocolo, tipo) 
 
         return jsonify({'protocolo': protocolo}), 200 
@@ -270,7 +267,6 @@ def responder_manifestacao():
         return jsonify({'erro': 'Manifestação não encontrada.'}), 404 
 
 if __name__ == '__main__': 
-    # Adicione a pasta 'templates' para que o Flask encontre os arquivos HTML
-    if not os.path.exists('templates'):
+   if not os.path.exists('templates'):
         os.makedirs('templates')
     app.run(debug=True)
