@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ouvidoria CETEP LNAB</title>
+    <title>Ouvidoria CETEP LNAB - Painel Público</title>
     <!-- Carrega o Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Carrega Ícones (Lucide) -->
     <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Configurações Tailwind personalizadas -->
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -16,8 +17,10 @@
                     colors: {
                         'primary-blue': '#1e40af', // Azul Institucional
                         'secondary-yellow': '#facc15', // Amarelo de Destaque
-                        'dark-bg': '#1f2937', // Fundo Escuro Principal
-                        'dark-card': '#374151', // Fundo Escuro para Cards
+                        'dark-bg': '#0f172a', // Fundo Escuro Principal (Slate 900)
+                        'dark-card': '#1e293b', // Fundo Escuro para Cards (Slate 800)
+                        'light-bg': '#f3f4f6', // Fundo Claro Padrão
+                        'light-card': '#ffffff',
                     }
                 }
             }
@@ -25,85 +28,98 @@
     </script>
     <style>
         /* Estilos base para garantir a fonte Inter e transições suaves */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            transition: background-color 0.4s ease-in-out, color 0.4s ease-in-out;
         }
 
-        /* Estilo para os ícones no carregamento */
-        .icon {
-            display: inline-block;
-            width: 1.25em;
-            height: 1.25em;
-            stroke-width: 2;
-            stroke: currentColor;
-            fill: none;
-            vertical-align: text-bottom;
+        /* Estilo base para os botões de ação com hover (mantém o translate mais contido) */
+        .action-card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .action-card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.15), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            transform: translateY(-2px);
         }
 
-        /* Classes de transição para o switch de modo escuro */
-        .switch-transition {
-            transition: background-color 0.5s ease-in-out, color 0.5s ease-in-out;
+        /* Animação de carregamento (simples spinner) */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            animation: spin 1s linear infinite;
         }
-
-        /* Estilo para o resultado da consulta no modo escuro */
-        .dark .result-display {
-            border-left-color: #facc15;
-            background-color: #4b5563;
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-dark-bg switch-transition min-h-screen">
-    <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+<body class="bg-light-bg dark:bg-dark-bg min-h-screen">
+    <div class="max-w-5xl mx-auto p-4 sm:p-6 lg:p-10">
 
-        <!-- Header e Logo -->
-        <header class="ouvidoria-header bg-white dark:bg-dark-card p-4 sm:p-6 mb-8 rounded-xl shadow-2xl border-l-8 border-primary-blue dark:border-secondary-yellow switch-transition">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                    <!-- Placeholder da Logo -->
-                    <div class="h-12 w-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center me-4">
-                        <span class="text-xl text-primary-blue dark:text-secondary-yellow font-bold">LNAB</span>
+        <!-- Header, Logo e Toggle de Tema -->
+        <header class="ouvidoria-header bg-light-card dark:bg-dark-card p-4 sm:p-8 mb-10 rounded-2xl shadow-2xl border-b-8 border-primary-blue dark:border-secondary-yellow transition duration-300">
+            <div class="flex flex-col sm:flex-row items-center justify-between">
+                <!-- Título e Branding -->
+                <div class="flex items-center mb-4 sm:mb-0">
+                    <div class="h-16 w-16 bg-primary-blue dark:bg-secondary-yellow rounded-full flex items-center justify-center me-4 shadow-md">
+                        <i data-lucide="megaphone" class="h-8 w-8 text-white dark:text-gray-900"></i>
                     </div>
-                    <h1 class="text-3xl font-extrabold text-gray-900 dark:text-gray-100 switch-transition">Ouvidoria CETEP LNAB</h1>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-gray-100 leading-tight">
+                        Ouvidoria <span class="text-primary-blue dark:text-secondary-yellow">CETEP LNAB</span>
+                    </h1>
                 </div>
                 
                 <!-- Botão de Tema -->
-                <button id="toggleTheme" class="flex items-center space-x-2 p-2 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 transition duration-150">
-                    <i data-lucide="moon" id="themeIcon" class="icon h-5 w-5"></i>
-                    <span id="themeText" class="text-sm font-medium hidden sm:inline">Tema Escuro</span>
-                </button>
+                <div class="flex items-center space-x-4">
+                    <button id="toggleTheme" class="flex items-center space-x-2 p-3 rounded-full text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-dark-bg hover:bg-gray-200 dark:hover:bg-gray-700 transition duration-150 shadow-inner">
+                        <i data-lucide="moon" id="themeIcon" class="h-5 w-5"></i>
+                        <span id="themeText" class="text-sm font-medium hidden md:inline">Tema Escuro</span>
+                    </button>
+
+                    <!-- User ID Display (Importante para Firestore) -->
+                    <div class="text-sm text-gray-500 dark:text-gray-400 p-2 rounded-lg border border-gray-200 dark:border-gray-700 hidden lg:block">
+                        ID: <span id="userIdDisplay" class="font-mono text-xs">Aguardando Auth...</span>
+                    </div>
+                </div>
             </div>
         </header>
 
-        <!-- Menu de Ações Principais (Botões/Cards) -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
+        <!-- Menu de Ações Principais (Grid Responsivo) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
             <!-- Registrar Manifestação -->
-            <button class="action-card bg-green-600 hover:bg-green-700 text-white p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 transform hover:-translate-y-1" onclick="mostrar('registro')">
-                <i data-lucide="file-text" class="icon h-6 w-6 mb-2"></i>
-                <span class="block text-lg font-semibold">Registrar Manifestação</span>
+            <button class="action-card bg-green-600 hover:bg-green-700 text-white p-6 rounded-2xl shadow-xl transition duration-300 transform hover:-translate-y-1" onclick="mostrar('registro')">
+                <i data-lucide="file-text" class="h-6 w-6 mb-2 mx-auto"></i>
+                <span class="block text-sm sm:text-lg font-semibold text-center">Registrar</span>
             </button>
             
             <!-- Consultar Protocolo -->
-            <button class="action-card bg-primary-blue hover:bg-blue-800 text-white p-6 rounded-xl shadow-xl hover:shadow-2xl transition duration-300 transform hover:-translate-y-1" onclick="mostrar('consulta')">
-                <i data-lucide="search" class="icon h-6 w-6 mb-2"></i>
-                <span class="block text-lg font-semibold">Consultar Protocolo</span>
+            <button class="action-card bg-primary-blue hover:bg-blue-800 text-white p-6 rounded-2xl shadow-xl transition duration-300 transform hover:-translate-y-1" onclick="mostrar('consulta')">
+                <i data-lucide="search" class="h-6 w-6 mb-2 mx-auto"></i>
+                <span class="block text-sm sm:text-lg font-semibold text-center">Consultar Protocolo</span>
             </button>
             
-            <!-- Consultas Secundárias Agrupadas -->
-            <div class="col-span-1 grid grid-rows-2 gap-2">
-                <button class="action-card bg-white dark:bg-dark-card text-gray-800 dark:text-gray-100 p-4 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" onclick="mostrar('consultaCPF')">
-                    Consultar por CPF
-                </button>
-                <button class="action-card bg-white dark:bg-dark-card text-gray-800 dark:text-gray-100 p-4 border border-gray-300 dark:border-gray-600 rounded-xl shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" onclick="mostrar('consultaMatricula')">
-                    Consultar por Matrícula
-                </button> 
-            </div>
+            <!-- Consultar por CPF -->
+            <button class="action-card bg-white dark:bg-dark-card text-gray-800 dark:text-gray-100 p-6 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" onclick="mostrar('consultaCPF')">
+                <i data-lucide="user-check" class="h-6 w-6 mb-2 mx-auto text-blue-500 dark:text-blue-400"></i>
+                <span class="block text-sm sm:text-lg font-semibold text-center">Consultar por CPF</span>
+            </button>
+            
+            <!-- Consultar por Matrícula -->
+            <button class="action-card bg-white dark:bg-dark-card text-gray-800 dark:text-gray-100 p-6 border border-gray-300 dark:border-gray-700 rounded-2xl shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150" onclick="mostrar('consultaMatricula')">
+                <i data-lucide="graduation-cap" class="h-6 w-6 mb-2 mx-auto text-yellow-600 dark:text-yellow-400"></i>
+                <span class="block text-sm sm:text-lg font-semibold text-center">Consultar por Matrícula</span>
+            </button>
         </div>
         
         <!-- Link de Acesso Admin -->
-        <div class="text-center mb-6">
-            <button class="text-sm text-red-600 dark:text-red-400 hover:underline font-medium" onclick="mostrar('adminLogin')">
-                Acesso Exclusivo do Administrador
+        <div class="text-center mb-10">
+            <button class="text-md text-red-600 dark:text-red-400 hover:underline font-medium" onclick="mostrar('adminLogin')">
+                <i data-lucide="shield" class="h-4 w-4 inline me-1"></i> Acesso Exclusivo do Administrador
             </button>
         </div>
 
@@ -111,29 +127,28 @@
         <!-- Conteúdo das Seções (TODAS as seções devem ter 'ouvidoria-section' e 'hidden' inicialmente) -->
         
         <!-- 1. Registrar Manifestação -->
-        <div id="registro" class="ouvidoria-section bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Registre Sua Manifestação</h2>
+        <div id="registro" class="ouvidoria-section bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-2xl shadow-2xl transition hidden">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <i data-lucide="clipboard-list" class="h-7 w-7 inline me-2 text-green-500"></i> Registrar Nova Manifestação
+            </h2>
             <form id="formRegistro" onsubmit="handleFormSubmit(event, 'registro')">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="mb-4">
-                        <label for="nome" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nome (opcional)</label>
-                        <input type="text" id="nome" name="nome" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                        <label for="nome" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Nome (opcional)</label>
+                        <input type="text" id="nome" name="nome" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition">
                     </div>
                     <div class="mb-4">
-                        <label for="cpf" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CPF <span class="text-xs text-gray-500">(Apenas números)</span></label>
-                        <input type="text" id="cpf" name="cpf" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" maxlength="11" required>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="mb-4">
-                        <label for="matricula" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Matrícula <span class="text-xs text-gray-500">(8 números)</span></label>
-                        <input type="text" id="matricula" name="matricula" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" maxlength="8" required>
+                        <label for="cpf" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">CPF <span class="text-xs text-gray-500 dark:text-gray-400">(Apenas números)</span></label>
+                        <input type="text" id="cpf" name="cpf" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" maxlength="11" required>
                     </div>
                     <div class="mb-4">
-                        <label for="tipo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Manifestação</label>
-                        <select id="tipo" name="tipo" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
-                            <option value="" disabled selected>Selecione...</option>
+                        <label for="matricula" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Matrícula <span class="text-xs text-gray-500 dark:text-gray-400">(8 números)</span></label>
+                        <input type="text" id="matricula" name="matricula" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" maxlength="8" required>
+                    </div>
+                    <div class="mb-4">
+                        <label for="tipo" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Tipo de Manifestação</label>
+                        <select id="tipo" name="tipo" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white appearance-none transition" required>
+                            <option value="" disabled selected>Selecione o tipo...</option>
                             <option value="elogio">Elogio - Reconhecimento e gratidão</option>
                             <option value="sugestao">Sugestão - Ideias para melhoria</option>
                             <option value="reclamacao">Reclamação - Insatisfação com serviço</option>
@@ -143,205 +158,399 @@
                 </div>
                 
                 <div class="mb-6">
-                    <label for="descricao" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Descrição Detalhada</label>
-                    <textarea id="descricao" name="descricao" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="6" required></textarea>
+                    <label for="descricao" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Descrição Detalhada</label>
+                    <textarea id="descricao" name="descricao" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" rows="6" placeholder="Descreva sua manifestação em detalhes..." required></textarea>
                 </div>
                 
-                <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-150">
-                    Enviar Manifestação
+                <button type="submit" id="submitRegistro" class="w-full py-3 px-4 border border-transparent rounded-xl shadow-lg text-lg font-bold text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-green-500/50 transition duration-150 flex items-center justify-center disabled:opacity-50" disabled>
+                    <div id="loadingRegistro" class="hidden spinner me-2"></div>
+                    <span id="textRegistro">Enviar Manifestação</span>
                 </button>
             </form>
             <div id="msgRegistro" class="mt-4 text-center"></div>
         </div>
 
         <!-- 2. Consultar por Protocolo -->
-        <div id="consulta" class="ouvidoria-section bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Consultar por Protocolo</h2>
+        <div id="consulta" class="ouvidoria-section bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-2xl shadow-2xl transition hidden">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <i data-lucide="scan" class="h-7 w-7 inline me-2 text-primary-blue"></i> Consultar por Protocolo
+            </h2>
             <form id="formConsulta" onsubmit="handleFormSubmit(event, 'consulta')">
-                <div class="mb-4">
-                    <label for="protocolo" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Número do Protocolo</label>
-                    <input type="text" id="protocolo" name="protocolo" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                <div class="mb-6">
+                    <label for="protocolo" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Número do Protocolo</label>
+                    <input type="text" id="protocolo" name="protocolo" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring-2 focus:ring-primary-blue/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" placeholder="Ex: PROTO-12345" required>
                 </div>
-                <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-primary-blue hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue transition duration-150">
-                    Consultar
+                <button type="submit" id="submitConsulta" class="w-full py-3 px-4 rounded-xl shadow-lg text-lg font-bold text-white bg-primary-blue hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-primary-blue/50 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <div id="loadingConsulta" class="hidden spinner me-2"></div>
+                    <span id="textConsulta">Consultar</span>
                 </button>
             </form>
-            <div id="resultadoConsulta" class="mt-6"></div>
+            <div id="resultadoConsulta" class="mt-8"></div>
         </div>
 
         <!-- 3. Consultar por CPF -->
-        <div id="consultaCPF" class="ouvidoria-section bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Consultar por CPF</h2>
+        <div id="consultaCPF" class="ouvidoria-section bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-2xl shadow-2xl transition hidden">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <i data-lucide="users" class="h-7 w-7 inline me-2 text-blue-500"></i> Consultar por CPF
+            </h2>
             <form id="formConsultaCPF" onsubmit="handleFormSubmit(event, 'consultaCPF')">
-                <div class="mb-4">
-                    <label for="cpfBusca" class="block text-sm font-medium text-gray-700 dark:text-gray-300">CPF</label>
-                    <input type="text" id="cpfBusca" name="cpfBusca" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                <div class="mb-6">
+                    <label for="cpfBusca" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">CPF do Manifestante</label>
+                    <input type="text" id="cpfBusca" name="cpfBusca" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" maxlength="11" required>
                 </div>
-                <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150">
-                    Consultar Todas
+                <button type="submit" id="submitConsultaCPF" class="w-full py-3 px-4 rounded-xl shadow-lg text-lg font-bold text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-blue-500/50 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <div id="loadingConsultaCPF" class="hidden spinner me-2"></div>
+                    <span id="textConsultaCPF">Consultar Todas as Manifestações</span>
                 </button>
             </form>
-            <div id="resultadoConsultaCPF" class="mt-6"></div>
+            <div id="resultadoConsultaCPF" class="mt-8"></div>
         </div>
         
         <!-- 4. Consultar por Matrícula -->
-        <div id="consultaMatricula" class="ouvidoria-section bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Consultar por Matrícula</h2>
+        <div id="consultaMatricula" class="ouvidoria-section bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-2xl shadow-2xl transition hidden">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <i data-lucide="book-open" class="h-7 w-7 inline me-2 text-secondary-yellow"></i> Consultar por Matrícula
+            </h2>
             <form id="formConsultaMatricula" onsubmit="handleFormSubmit(event, 'consultaMatricula')">
-                <div class="mb-4">
-                    <label for="matriculaBusca" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Matrícula</label>
-                    <input type="text" id="matriculaBusca" name="matriculaBusca" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-primary-blue focus:ring focus:ring-primary-blue focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" maxlength="8" required>
+                <div class="mb-6">
+                    <label for="matriculaBusca" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Matrícula do Manifestante</label>
+                    <input type="text" id="matriculaBusca" name="matriculaBusca" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-secondary-yellow focus:ring-2 focus:ring-secondary-yellow/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" maxlength="8" required>
                 </div>
-                <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 transition duration-150">
-                    Consultar Todas
+                <button type="submit" id="submitConsultaMatricula" class="w-full py-3 px-4 rounded-xl shadow-lg text-lg font-bold text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-yellow-500/50 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <div id="loadingConsultaMatricula" class="hidden spinner me-2"></div>
+                    <span id="textConsultaMatricula">Consultar Todas as Manifestações</span>
                 </button>
             </form>
-            <div id="resultadoConsultaMatricula" class="mt-6"></div>
+            <div id="resultadoConsultaMatricula" class="mt-8"></div>
         </div>
 
         <!-- 5. Acesso do Administrador -->
-        <div id="adminLogin" class="ouvidoria-section bg-white dark:bg-dark-card p-6 rounded-xl shadow-xl hidden">
-            <h2 class="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-100">Acesso do Administrador</h2>
+        <div id="adminLogin" class="ouvidoria-section bg-light-card dark:bg-dark-card p-6 sm:p-8 rounded-2xl shadow-2xl transition hidden">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-100 border-b pb-2 border-gray-200 dark:border-gray-700">
+                <i data-lucide="lock" class="h-7 w-7 inline me-2 text-red-600"></i> Acesso Restrito
+            </h2>
             <form id="formAdminLogin" onsubmit="handleFormSubmit(event, 'adminLogin')">
                 <div class="mb-4">
-                    <label for="usuarioAdmin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Usuário</label>
-                    <input type="text" id="usuarioAdmin" name="usuarioAdmin" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-red-600 focus:ring focus:ring-red-600 focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                    <label for="usuarioAdmin" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Usuário</label>
+                    <input type="text" id="usuarioAdmin" name="usuarioAdmin" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-red-600 focus:ring-2 focus:ring-red-600/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" required>
                 </div>
                 <div class="mb-6">
-                    <label for="senhaAdmin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Senha</label>
-                    <input type="password" id="senhaAdmin" name="senhaAdmin" class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 focus:border-red-600 focus:ring focus:ring-red-600 focus:ring-opacity-50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white" required>
+                    <label for="senhaAdmin" class="block text-sm font-semibold text-gray-700 dark:text-gray-300">Senha</label>
+                    <input type="password" id="senhaAdmin" name="senhaAdmin" class="mt-1 block w-full rounded-xl border-gray-300 shadow-sm p-3 focus:border-red-600 focus:ring-2 focus:ring-red-600/50 bg-gray-50 dark:bg-gray-700 dark:border-gray-600 dark:text-white transition" required>
                 </div>
-                <button type="submit" class="w-full py-3 px-4 border border-transparent rounded-lg shadow-sm text-lg font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition duration-150">
-                    Entrar
+                <button type="submit" id="submitAdmin" class="w-full py-3 px-4 rounded-xl shadow-lg text-lg font-bold text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-offset-2 focus:ring-red-500/50 transition duration-150 flex items-center justify-center disabled:opacity-50">
+                    <div id="loadingAdmin" class="hidden spinner me-2"></div>
+                    <span id="textAdmin">Entrar no Painel</span>
                 </button>
             </form>
-            <div id="erroLogin" class="mt-4 text-center text-red-600 dark:text-red-400"></div>
+            <div id="erroLogin" class="mt-4 text-center text-red-600 dark:text-red-400 font-medium"></div>
         </div>
 
-        <!-- 6. Confirmação (Sucesso) -->
-        <div id="confirmacao" class="ouvidoria-section bg-white dark:bg-dark-card p-8 rounded-xl shadow-xl text-center hidden">
-            <i data-lucide="check-circle" class="icon h-12 w-12 text-green-500 mx-auto mb-4"></i>
-            <h2 class="text-3xl font-bold mb-2 text-gray-800 dark:text-gray-100">Sucesso!</h2>
-            <p class="text-lg mb-4 text-gray-600 dark:text-gray-400">Sua manifestação foi registrada.</p>
-            <p class="text-xl font-extrabold text-primary-blue dark:text-secondary-yellow mb-6">Protocolo: <span id="protocoloGerado">12345-LNAB</span></p>
-            <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <button class="py-2 px-4 rounded-lg font-medium bg-primary-blue text-white hover:bg-blue-800 transition duration-150" onclick="mostrar('consulta')">
-                    <i data-lucide="search" class="icon h-5 w-5 me-1"></i> Consultar Protocolo
-                </button>
-                <button class="py-2 px-4 rounded-lg font-medium bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600 transition duration-150" onclick="mostrar('registro')">
-                    Nova Manifestação
-                </button>
+        <!-- 6. Modal de Mensagem (Substitui alert/confirm) -->
+        <div id="messageModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center hidden" onclick="closeModal()">
+            <div class="bg-light-card dark:bg-dark-card p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center transition transform duration-300 scale-95" onclick="event.stopPropagation()">
+                <div id="modalIconContainer" class="mb-4 flex justify-center">
+                    <!-- Icon will be dynamically added here -->
+                </div>
+                <h3 id="modalTitle" class="text-2xl font-bold mb-2 text-gray-900 dark:text-gray-100">Sucesso!</h3>
+                <p id="modalBody" class="text-gray-600 dark:text-gray-400 mb-6">Sua manifestação foi registrada.</p>
+                <div id="modalActions" class="flex justify-center gap-4">
+                    <button id="modalCloseBtn" class="py-2 px-6 rounded-xl font-semibold bg-primary-blue text-white hover:bg-blue-800 transition duration-150" onclick="closeModal()">Fechar</button>
+                    <!-- Additional buttons can be added dynamically -->
+                </div>
             </div>
         </div>
         
     </div>
 
-    <script>
-        // Função principal para trocar as telas
-        function mostrar(id) {
-            // Esconde todas as seções (os "cards" de conteúdo)
-            document.querySelectorAll('.ouvidoria-section').forEach(d => d.classList.add('hidden'));
-            
-            // Exibe a seção alvo
-            const targetElement = document.getElementById(id);
-            if (targetElement) {
-                targetElement.classList.remove('hidden');
-            }
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, collection, addDoc, setDoc, getDoc, query, where, getDocs, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            // Limpa os resultados de consulta ao mudar a tela (evita poluição visual)
-            ['resultadoConsulta', 'resultadoConsultaCPF', 'resultadoConsultaMatricula'].forEach(divId => {
-                const div = document.getElementById(divId);
-                if (div) div.innerHTML = '';
-            });
+        // Variáveis Globais (fornecidas pelo ambiente Canvas)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-ouvidoria-lnab';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-            // Rolagem suave para o topo do conteúdo
-            document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // Inicialização do Firebase e Firestore
+        let app, db, auth;
+        let userId = 'unknown'; // Inicializa com 'unknown'
+        let isAuthReady = false;
+
+        setLogLevel('Debug');
+
+        try {
+            app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+        } catch (e) {
+            console.error("Erro ao inicializar Firebase:", e);
         }
 
-        // Função para simular o processamento do formulário e feedback
-        function handleFormSubmit(event, formType) {
+        const PUBLIC_COLLECTION_PATH = `artifacts/${appId}/public/data/manifestacoes`;
+
+        // Função de Autenticação e Listener
+        async function setupAuth() {
+            if (!auth) {
+                console.error("Auth não inicializado.");
+                return;
+            }
+
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                    document.getElementById('userIdDisplay').textContent = userId;
+                    isAuthReady = true;
+                    console.log("Usuário autenticado:", userId);
+                    // Habilita o botão de registro após a autenticação
+                    document.getElementById('submitRegistro').disabled = false;
+                } else {
+                    try {
+                        // Tenta autenticar com o token personalizado se disponível
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            // Caso contrário, usa login anônimo (pode ser usado para usuários públicos)
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Erro na autenticação:", error);
+                        // Se falhar, continua como anônimo sem ID real
+                        userId = crypto.randomUUID();
+                        document.getElementById('userIdDisplay').textContent = 'ANON-' + userId.substring(0, 8);
+                        isAuthReady = true;
+                        document.getElementById('submitRegistro').disabled = false; // Permite o uso mesmo sem auth total
+                    }
+                }
+            });
+        }
+
+        // Simulação/Placeholder das Funções CRUD do Firestore
+        async function registerManifestacao(data) {
+            if (!isAuthReady) {
+                console.warn("Autenticação não concluída. Tentando novamente...");
+                return null;
+            }
+            try {
+                // Adiciona um timestamp e o UID do manifestante
+                const manifestacaoData = {
+                    ...data,
+                    timestamp: new Date().toISOString(),
+                    manifestanteUid: userId,
+                    status: 'Em Análise',
+                    resposta: null,
+                };
+                
+                // Salva na coleção pública
+                const docRef = await addDoc(collection(db, PUBLIC_COLLECTION_PATH), manifestacaoData);
+                
+                // Cria um número de protocolo baseado no ID do documento
+                const protocolo = `PROTO-${docRef.id.substring(0, 5).toUpperCase()}`;
+                await setDoc(docRef, { protocolo: protocolo }, { merge: true }); // Atualiza o documento com o protocolo
+                
+                console.log("Documento escrito com ID: ", docRef.id, " e protocolo:", protocolo);
+                return protocolo;
+
+            } catch (e) {
+                console.error("Erro ao adicionar documento: ", e);
+                showModal('error', 'Erro!', 'Não foi possível registrar sua manifestação. Tente novamente.');
+                return null;
+            }
+        }
+
+        async function queryManifestacoes(field, value, targetDivId) {
+            if (!isAuthReady) {
+                showModal('info', 'Aguarde', 'Aguarde a inicialização do sistema, por favor.');
+                return;
+            }
+
+            const q = query(collection(db, PUBLIC_COLLECTION_PATH), where(field, '==', value));
+
+            try {
+                // Usamos getDocs para consulta única (sem real-time)
+                const querySnapshot = await getDocs(q);
+                const results = [];
+                querySnapshot.forEach((doc) => {
+                    results.push({ id: doc.id, ...doc.data() });
+                });
+
+                if (results.length > 0) {
+                    formatResults(results, targetDivId);
+                } else {
+                    document.getElementById(targetDivId).innerHTML = '<p class="text-red-500 dark:text-red-400 font-medium p-4 bg-red-50 dark:bg-gray-700 rounded-xl"><i data-lucide="alert-triangle" class="h-5 w-5 inline me-1"></i> Nenhuma manifestação encontrada com o dado fornecido.</p>';
+                }
+                lucide.createIcons();
+
+            } catch (e) {
+                console.error("Erro ao buscar documentos: ", e);
+                document.getElementById(targetDivId).innerHTML = '<p class="text-red-500 dark:text-red-400 font-medium p-4 bg-red-50 dark:bg-gray-700 rounded-xl"><i data-lucide="x-circle" class="h-5 w-5 inline me-1"></i> Erro ao consultar o banco de dados. Verifique o console.</p>';
+                lucide.createIcons();
+            }
+        }
+        
+        // Fim das Funções CRUD do Firestore
+
+        // Substituição do Alert/Confirm
+        function showModal(type, title, body, actions = []) {
+            const modal = document.getElementById('messageModal');
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalBody').textContent = body;
+            
+            const iconContainer = document.getElementById('modalIconContainer');
+            const actionsDiv = document.getElementById('modalActions');
+            iconContainer.innerHTML = '';
+            actionsDiv.innerHTML = '<button id="modalCloseBtn" class="py-2 px-6 rounded-xl font-semibold bg-primary-blue text-white hover:bg-blue-800 transition duration-150" onclick="closeModal()">Fechar</button>';
+
+            let iconHtml = '';
+            let iconClass = '';
+            
+            switch (type) {
+                case 'success':
+                    iconHtml = '<i data-lucide="check-circle" class="h-10 w-10 text-green-500"></i>';
+                    break;
+                case 'error':
+                    iconHtml = '<i data-lucide="x-octagon" class="h-10 w-10 text-red-500"></i>';
+                    break;
+                case 'info':
+                default:
+                    iconHtml = '<i data-lucide="info" class="h-10 w-10 text-primary-blue"></i>';
+                    break;
+            }
+            
+            iconContainer.innerHTML = iconHtml;
+            lucide.createIcons();
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('messageModal').classList.add('hidden');
+        }
+
+        // Atribui a função ao escopo global para que o HTML possa chamá-la
+        window.closeModal = closeModal;
+
+
+        // Lógica de manipulação de formulário
+        async function handleFormSubmit(event, formType) {
             event.preventDefault();
             const form = event.target;
             
+            // Gerencia os loaders e desabilita o botão
+            const submitButton = document.getElementById(`submit${formType.charAt(0).toUpperCase() + formType.slice(1)}`);
+            const loadingIndicator = document.getElementById(`loading${formType.charAt(0).toUpperCase() + formType.slice(1)}`);
+            const textElement = document.getElementById(`text${formType.charAt(0).toUpperCase() + formType.slice(1)}`);
+
+            if (submitButton) submitButton.disabled = true;
+            if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+            if (textElement) textElement.classList.add('hidden');
+            
             // Limpa mensagens de erro/sucesso
             document.getElementById('msgRegistro')?.classList.add('hidden');
-            document.getElementById('erroLogin')?.classList.add('hidden');
+            document.getElementById('erroLogin').textContent = '';
 
-            // Simula o processamento
-            switch (formType) {
-                case 'registro':
-                    // Simula sucesso e gera protocolo
-                    document.getElementById('protocoloGerado').textContent = 'PROTO-' + Math.floor(Math.random() * 90000 + 10000);
-                    mostrar('confirmacao');
-                    form.reset(); // Limpa o formulário após a submissão
-                    break;
-                case 'consulta':
-                    // Simula resultado da consulta por Protocolo
-                    const proto = form.protocolo.value;
-                    const dataConsulta = { protocolo: proto, nome: 'Maria S. Anônimo', cpf: '***.456.***-**', matricula: '98765432', tipo: 'Reclamação', descricao: 'A lanchonete está fechando muito cedo.', resposta: 'Em análise. Prazo de 5 dias úteis.' };
-                    formatResults([dataConsulta], 'resultadoConsulta', true); // Detalhe único
-                    break;
-                case 'consultaCPF':
-                    // Simula múltiplos resultados por CPF
-                    const dataCPF = [
-                        { protocolo: 'PROTO-10001', nome: 'João da Silva', cpf: form.cpfBusca.value, matricula: '12345678', tipo: 'Elogio', descricao: 'A aula do prof. X foi excelente.', resposta: 'Agradecemos!' },
-                        { protocolo: 'PROTO-10005', nome: 'João da Silva', cpf: form.cpfBusca.value, matricula: '12345678', tipo: 'Sugestão', descricao: 'Colocar mais bancos no pátio.', resposta: null }
-                    ];
-                    formatResults(dataCPF, 'resultadoConsultaCPF');
-                    break;
-                case 'consultaMatricula':
-                    // Simula múltiplos resultados por Matrícula
-                    const dataMat = [
-                        { protocolo: 'PROTO-10002', nome: 'Joana N. G.', cpf: '***.111.***-**', matricula: form.matriculaBusca.value, tipo: 'Denúncia', descricao: 'Prof. Y está sempre atrasado.', resposta: 'Investigação em curso.' },
-                        { protocolo: 'PROTO-10006', nome: 'Joana N. G.', cpf: '***.111.***-**', matricula: form.matriculaBusca.value, tipo: 'Reclamação', descricao: 'Falta de água no bebedouro.', resposta: 'Resolvido em 24h.' }
-                    ];
-                    formatResults(dataMat, 'resultadoConsultaMatricula');
-                    break;
-                case 'adminLogin':
-                    // Simula falha de login
-                    document.getElementById('erroLogin').textContent = 'Usuário ou senha incorretos. Tente novamente.';
-                    document.getElementById('erroLogin').classList.remove('hidden');
-                    break;
+            await new Promise(resolve => setTimeout(resolve, 800)); // Simula tempo de rede
+
+            try {
+                switch (formType) {
+                    case 'registro':
+                        const formData = new FormData(form);
+                        const data = Object.fromEntries(formData.entries());
+                        const protocoloGerado = await registerManifestacao(data);
+                        
+                        if (protocoloGerado) {
+                            showModal('success', 'Sucesso!', `Sua manifestação foi registrada com o Protocolo: ${protocoloGerado}.`, [
+                                { text: 'Consultar', onclick: () => { closeModal(); mostrar('consulta'); document.getElementById('protocolo').value = protocoloGerado; } }
+                            ]);
+                            form.reset();
+                        }
+                        break;
+                    case 'consulta':
+                        const proto = form.protocolo.value;
+                        await queryManifestacoes('protocolo', proto, 'resultadoConsulta');
+                        break;
+                    case 'consultaCPF':
+                        const cpfBusca = form.cpfBusca.value;
+                        await queryManifestacoes('cpf', cpfBusca, 'resultadoConsultaCPF');
+                        break;
+                    case 'consultaMatricula':
+                        const matriculaBusca = form.matriculaBusca.value;
+                        await queryManifestacoes('matricula', matriculaBusca, 'resultadoConsultaMatricula');
+                        break;
+                    case 'adminLogin':
+                        // Acesso admin não é implementado neste arquivo, apenas o visual. Simula falha.
+                        document.getElementById('erroLogin').textContent = 'Usuário ou senha incorretos. Acesso negado.';
+                        break;
+                }
+            } finally {
+                // Restaura o estado original dos loaders e botões
+                if (submitButton) submitButton.disabled = false;
+                if (loadingIndicator) loadingIndicator.classList.add('hidden');
+                if (textElement) textElement.classList.remove('hidden');
+                lucide.createIcons();
             }
         }
-
+        window.handleFormSubmit = handleFormSubmit;
+        
         // Função para formatar e exibir os resultados da consulta
-        function formatResults(data, targetDivId, isSingle = false) {
+        function formatResults(data, targetDivId) {
             const targetDiv = document.getElementById(targetDivId);
             if (!targetDiv) return;
 
-            if (data.length === 0) {
-                targetDiv.innerHTML = '<p class="text-red-500 dark:text-red-400 font-medium">Nenhuma manifestação encontrada com o dado fornecido.</p>';
-            } else {
-                let html = '';
-                data.forEach(d => {
-                    // Estilo moderno para cada item de resultado
-                    const statusClass = d.resposta ? 'border-green-500' : 'border-secondary-yellow';
-                    const statusText = d.resposta ? 'Respondida' : 'Em Análise';
+            let html = `<h3 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">${data.length} Resultado(s) Encontrado(s)</h3>`;
+            
+            data.forEach(d => {
+                // Mapeamento de cor e ícone baseado no status
+                const statusColor = d.status === 'Respondida' ? 'green' : 'yellow';
+                const statusIcon = d.status === 'Respondida' ? 'check-circle' : 'clock';
 
-                    html += `
-                    <div class="result-display border p-4 mb-4 rounded-lg shadow-md border-l-4 ${statusClass} bg-gray-50 dark:bg-dark-card switch-transition">
-                        <div class="flex justify-between items-start mb-2">
-                            <p class="text-sm text-gray-500 dark:text-gray-400 font-mono">Protocolo: <span class="font-bold text-gray-800 dark:text-white">${d.protocolo}</span></p>
-                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${d.resposta ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100'}">${statusText}</span>
-                        </div>
-                        <p class="mb-1"><strong class="text-gray-700 dark:text-gray-200">Tipo:</strong> ${d.tipo.charAt(0).toUpperCase() + d.tipo.slice(1)}</p>
-                        <p class="mb-1"><strong class="text-gray-700 dark:text-gray-200">Manifestante:</strong> ${d.nome || 'Anônimo'}</p>
-                        <p class="mb-3 text-sm text-gray-600 dark:text-gray-300 italic">"${d.descricao.substring(0, 100)}${d.descricao.length > 100 ? '...' : ''}"</p>
-                        
-                        ${d.resposta ? 
-                            `<div class="mt-3 p-3 bg-green-50 dark:bg-gray-700 rounded-lg">
-                                <strong class="text-green-700 dark:text-green-400 flex items-center"><i data-lucide="message-square-text" class="icon h-4 w-4 me-1"></i> Resposta da Ouvidoria:</strong>
-                                <p class="text-green-600 dark:text-green-300 mt-1">${d.resposta}</p>
-                            </div>` : ''
-                        }
-                    </div>`;
-                });
-                targetDiv.innerHTML = html;
-                // Renderiza os ícones Lucide dentro dos resultados
-                lucide.createIcons(); 
-            }
+                // Mapeamento de cor baseado no tipo (opcional, para visual)
+                let typeColor = 'blue';
+                if (d.tipo === 'elogio') typeColor = 'green';
+                if (d.tipo === 'denuncia') typeColor = 'red';
+                
+                // Formata o nome do tipo
+                const formattedType = d.tipo.charAt(0).toUpperCase() + d.tipo.slice(1);
+                
+                html += `
+                <div class="result-display p-6 mb-4 rounded-xl shadow-lg border-l-4 border-${statusColor}-500 bg-light-card dark:bg-dark-card transition duration-300 hover:shadow-xl">
+                    <div class="flex justify-between items-start mb-3">
+                        <p class="text-md text-gray-500 dark:text-gray-400 font-mono">
+                            <i data-lucide="bookmark" class="h-4 w-4 inline me-1 text-${typeColor}-500"></i> 
+                            Protocolo: <span class="font-bold text-gray-800 dark:text-white">${d.protocolo || d.id.substring(0, 8)}</span>
+                        </p>
+                        <span class="text-xs font-semibold px-3 py-1 rounded-full bg-${statusColor}-100 text-${statusColor}-800 dark:bg-${statusColor}-800 dark:text-${statusColor}-100 flex items-center">
+                            <i data-lucide="${statusIcon}" class="h-3 w-3 me-1"></i> ${d.status}
+                        </span>
+                    </div>
+                    
+                    <p class="mb-1 text-sm"><strong class="text-gray-700 dark:text-gray-200">Tipo:</strong> ${formattedType}</p>
+                    <p class="mb-1 text-sm"><strong class="text-gray-700 dark:text-gray-200">Manifestante:</strong> ${d.nome || 'Anônimo'} | <strong class="text-gray-700 dark:text-gray-200">CPF:</strong> ${d.cpf || '***.***.***-**'}</p>
+                    
+                    <div class="mt-4 p-4 rounded-lg bg-gray-50 dark:bg-gray-800 border-l-4 border-gray-300 dark:border-gray-600">
+                        <strong class="text-gray-700 dark:text-gray-200 flex items-center mb-1">
+                            <i data-lucide="message-square" class="h-4 w-4 me-1 text-primary-blue dark:text-secondary-yellow"></i> Manifestação:
+                        </strong>
+                        <p class="text-gray-600 dark:text-gray-300 italic text-sm">${d.descricao || 'Descrição não disponível.'}</p>
+                    </div>
+
+                    ${d.resposta ? 
+                        `<div class="mt-4 p-4 bg-green-50 dark:bg-green-950 rounded-lg border-l-4 border-green-500">
+                            <strong class="text-green-700 dark:text-green-400 flex items-center mb-1">
+                                <i data-lucide="message-square-text" class="h-4 w-4 me-1"></i> Resposta da Ouvidoria:
+                            </strong>
+                            <p class="text-green-600 dark:text-green-300 text-sm">${d.resposta}</p>
+                        </div>` : ''
+                    }
+                </div>`;
+            });
+            targetDiv.innerHTML = html;
+            // Renderiza os ícones Lucide dentro dos resultados
+            lucide.createIcons(); 
         }
+        window.formatResults = formatResults;
+
 
         // === Lógica do Tema Escuro ===
         const htmlElement = document.documentElement;
@@ -352,8 +561,7 @@
         function updateThemeUI(isDark) {
             if (themeIcon) themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
             if (themeText) themeText.textContent = isDark ? "Tema Claro" : "Tema Escuro";
-            // Re-renderiza os ícones Lucide após a mudança
-            lucide.createIcons(); 
+            lucide.createIcons(); 
         }
 
         // Tenta carregar o tema do armazenamento local, padrão para escuro se não houver preferência
@@ -371,12 +579,30 @@
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
             updateThemeUI(isDark);
         });
+        
+        // Função principal para trocar as telas (exposta ao escopo global)
+        function mostrar(id) {
+            document.querySelectorAll('.ouvidoria-section').forEach(d => d.classList.add('hidden'));
+            const targetElement = document.getElementById(id);
+            if (targetElement) {
+                targetElement.classList.remove('hidden');
+            }
 
-        // Garante que o ícone Lucide seja criado no carregamento
-        document.addEventListener('DOMContentLoaded', () => {
+            // Limpa os resultados de consulta ao mudar a tela
+            ['resultadoConsulta', 'resultadoConsultaCPF', 'resultadoConsultaMatricula'].forEach(divId => {
+                const div = document.getElementById(divId);
+                if (div) div.innerHTML = '';
+            });
+
+            document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        window.mostrar = mostrar;
+        
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
-            // Inicia mostrando a seção de registro por padrão
-            mostrar('registro'); 
+            mostrar('registro');
+            await setupAuth(); // Inicia a autenticação do Firebase
         });
 
         // Gatilhos de input para limpar caracteres
