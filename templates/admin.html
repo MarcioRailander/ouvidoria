@@ -4,47 +4,125 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - CETEP Ouvidoria</title>
+    <!-- Carrega o Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
-        .container { max-width: 400px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; background-color: #fff; box-shadow: 2px 2px 5px rgba(0,0,0,0.1); border-radius: 5px; }
-        h1 { text-align: center; color: #333; }
-        p { text-align: center; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 10px; margin: 8px 0; display: inline-block; border: 1px solid #ccc; box-sizing: border-box; border-radius: 4px; }
-        button { background-color: #4CAF50; color: white; padding: 14px 20px; margin: 8px 0; border: none; cursor: pointer; width: 100%; border-radius: 4px; }
-        button:hover { opacity: 0.8; }
-        #messageBox { text-align: center; padding: 10px; margin-top: 10px; border-radius: 4px; }
+        /* Configuração de Fonte Global (Inter é um ótimo padrão moderno) */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Classes auxiliares para o feedback da mensagem */
         .hidden { display: none; }
-        .error { background-color: #fdd; color: #a00; border: 1px solid #a00; }
-        .success { background-color: #dfd; color: #0a0; border: 1px solid #0a0; }
+        
+        .message-success {
+            background-color: #d1fae5; /* green-100 */
+            color: #065f46; /* green-800 */
+            border: 1px solid #34d399; /* green-400 */
+        }
+        
+        .message-error {
+            background-color: #fee2e2; /* red-100 */
+            color: #991b1b; /* red-800 */
+            border: 1px solid #f87171; /* red-400 */
+        }
     </style>
+    <!-- Configuração de cores customizadas para a aplicação -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cetep-primary': '#1e40af', // Indigo 700 (Azul forte para admin)
+                        'cetep-dark': '#1e3a8a',   // Indigo 800
+                        'cetep-accent': '#10b981', // Emerald 500 (Verde para botão)
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <div class="container">
-        <h1>Acesso Administrativo</h1>
-        <p>CETEP - Ouvidoria LNAB</p>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
-        <form id="loginForm">
-            <label for="usuarioAdmin"><b>Usuário</b></label>
-            <input type="text" placeholder="Entre com o Usuário" id="usuarioAdmin" name="usuarioAdmin" required>
+    <!-- Container do Formulário de Login -->
+    <div class="w-full max-w-sm bg-white shadow-xl rounded-xl p-8 space-y-6">
 
-            <label for="senhaAdmin"><b>Senha</b></label>
-            <input type="password" placeholder="Entre com a Senha" id="senhaAdmin" name="senhaAdmin" required>
+        <!-- Header -->
+        <div class="text-center">
+            <h1 class="text-3xl font-extrabold text-cetep-dark">
+                Acesso Administrativo
+            </h1>
+            <p class="mt-2 text-sm text-gray-500">
+                CETEP - Ouvidoria LNAB
+            </p>
+        </div>
+        <!-- Fim do Header -->
+
+        <!-- Formulário -->
+        <form id="loginForm" class="space-y-4">
             
-            <button type="submit" id="loginButton">Entrar</button>
-        </form>
+            <div>
+                <label for="usuarioAdmin" class="block text-sm font-medium text-gray-700 mb-1">
+                    Usuário
+                </label>
+                <input 
+                    type="text" 
+                    placeholder="Entre com o Usuário" 
+                    id="usuarioAdmin" 
+                    name="usuarioAdmin" 
+                    required 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-cetep-primary focus:border-cetep-primary shadow-sm transition duration-150 ease-in-out placeholder-gray-400"
+                >
+            </div>
 
-        <div id="messageBox" class="hidden"></div>
+            <div>
+                <label for="senhaAdmin" class="block text-sm font-medium text-gray-700 mb-1">
+                    Senha
+                </label>
+                <input 
+                    type="password" 
+                    placeholder="Entre com a Senha" 
+                    id="senhaAdmin" 
+                    name="senhaAdmin" 
+                    required
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-cetep-primary focus:border-cetep-primary shadow-sm transition duration-150 ease-in-out placeholder-gray-400"
+                >
+            </div>
+            
+            <button 
+                type="submit" 
+                id="loginButton"
+                class="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-md text-base font-semibold text-white bg-cetep-accent hover:bg-emerald-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cetep-accent transition duration-150 ease-in-out disabled:opacity-50"
+            >
+                Entrar
+            </button>
+        </form>
+        <!-- Fim do Formulário -->
+
+        <!-- Caixa de Mensagens -->
+        <div id="messageBox" class="hidden text-sm p-3 rounded-lg text-center font-medium" role="alert"></div>
     </div>
 
     <script>
-        // Função para mostrar mensagens de status
+        // Função para mostrar mensagens de status (atualizada para usar as novas classes)
         function showMessage(type, content) {
             const messageBox = document.getElementById('messageBox');
+            
+            // Remove classes antigas e adiciona a nova base
+            messageBox.className = 'text-sm p-3 rounded-lg text-center font-medium'; 
             messageBox.textContent = content;
-            messageBox.className = type; // 'success' ou 'error'
+
+            if (type === 'success') {
+                messageBox.classList.add('message-success');
+            } else if (type === 'error') {
+                messageBox.classList.add('message-error');
+            }
+            
             messageBox.classList.remove('hidden');
         }
 
+        // Listener de Submissão do Formulário
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const form = e.target;
@@ -55,37 +133,58 @@
             loginButton.textContent = 'Aguarde...';
             document.getElementById('messageBox').classList.add('hidden');
             
-            // 2. Requisição para o endpoint de login
-            fetch('/admin_login', {
-                method: 'POST',
-                // Envia os dados do formulário como URLSearchParams
-                body: new URLSearchParams(new FormData(form))
-            })
-            // 3. Processa a resposta (incluindo o status HTTP)
-            .then(response => response.json().then(data => ({ status: response.status, body: data })))
-            .then(({ status, body }) => {
-                if (status === 200) {
-                    // Login bem-sucedido
-                    showMessage('success', 'Login realizado com sucesso! Redirecionando...');
-                    // O backend deve retornar { redirect: '/admin_dashboard' }
-                    if (body.redirect) {
-                        window.location.href = body.redirect; 
+            // Variáveis para Exponential Backoff (recomenda-se para requisições de API)
+            const MAX_RETRIES = 3;
+            const INITIAL_DELAY = 1000; // 1 segundo
+
+            // Função para tentar a requisição com backoff
+            async function attemptLogin(retries) {
+                try {
+                    const response = await fetch('/admin_login', {
+                        method: 'POST',
+                        body: new URLSearchParams(new FormData(form))
+                    });
+
+                    // Verifica se a resposta foi processada pelo servidor
+                    const result = await response.json();
+
+                    if (response.status === 200) {
+                        // Login bem-sucedido
+                        showMessage('success', 'Login realizado com sucesso! Redirecionando...');
+                        if (result.redirect) {
+                            // Pequeno atraso para o usuário ver a mensagem de sucesso
+                            setTimeout(() => {
+                                window.location.href = result.redirect; 
+                            }, 1500);
+                        }
+                    } else {
+                        // Erro de credenciais ou outro erro do servidor (4xx, 5xx)
+                        showMessage('error', result.erro || 'Credenciais inválidas. Tente novamente.');
                     }
-                } else {
-                    // Erro de credenciais (ou outro erro do servidor)
-                    showMessage('error', body.erro || 'Credenciais inválidas. Tente novamente.');
+                } catch (error) {
+                    console.error('Erro na requisição:', error);
+                    
+                    if (retries < MAX_RETRIES) {
+                        const delay = INITIAL_DELAY * Math.pow(2, retries);
+                        // Atraso e nova tentativa
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        // console.log(`Tentando novamente em ${delay / 1000}s... (Tentativa ${retries + 1})`);
+                        await attemptLogin(retries + 1);
+                    } else {
+                        // Todas as tentativas falharam
+                        showMessage('error', 'Erro de conexão com o servidor. Verifique sua rede e tente novamente mais tarde.');
+                    }
+                } finally {
+                    // 5. Restaura o botão SOMENTE se o login não foi bem-sucedido
+                    if (document.getElementById('messageBox').classList.contains('message-error') || document.getElementById('messageBox').classList.contains('hidden')) {
+                         loginButton.disabled = false;
+                         loginButton.textContent = 'Entrar';
+                    }
                 }
-            })
-            // 4. Tratamento de erro de rede
-            .catch(error => {
-                console.error('Erro na requisição:', error);
-                showMessage('error', 'Erro de conexão com o servidor. Verifique sua rede.');
-            })
-            // 5. Restaura o botão em qualquer cenário
-            .finally(() => {
-                loginButton.disabled = false;
-                loginButton.textContent = 'Entrar';
-            });
+            }
+            
+            // Inicia o processo de login
+            attemptLogin(0);
         });
     </script>
 </body>
